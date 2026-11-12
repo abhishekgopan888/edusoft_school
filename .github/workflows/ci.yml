@@ -1,4 +1,4 @@
-name: CI
+name: CI & FTP Deployment
 
 on:
   push:
@@ -61,6 +61,7 @@ jobs:
         run: |
           echo "Linting application PHP files..."
           find application/ -type f -name "*.php" -print0 | xargs -0 -n 1 -P 4 php -l
+
           echo "Linting API PHP files..."
           find api/ -type f -name "*.php" ! -path "api/vendor/*" -print0 | xargs -0 -n 1 -P 4 php -l
 
@@ -69,3 +70,66 @@ jobs:
           php api/generate_swagger.php
           test -f api/swagger.json
           test -f api/swagger.yaml
+
+  deploy:
+    name: FTP Deployment
+    runs-on: ubuntu-latest
+    needs: php-ci
+    timeout-minutes: 60
+
+    # Deploy only after successful CI on main branch (supports push and manual trigger)
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Deploy to Server via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+
+          local-dir: ./
+          server-dir: /public_html/
+
+          # Extended connection and transfer timeout (in milliseconds)
+          timeout: 60000
+
+          # Deployment exclusions (CodeIgniter specific cache/logs, server database configs, uploads, backups, temp & secrets)
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/vendor/**
+            **/api/vendor/**
+            **/.env*
+            **/application/config/database.php
+            **/api/application/config/database.php
+            **/uploads/**
+            **/application/logs/**
+            **/application/cache/**
+            **/api/application/logs/**
+            **/api/application/cache/**
+            **/temp/**
+            **/backup/**
+            **/scratch/**
+            **/*.zip
+            **/*.tar.gz
+            **/*.sql
+            **/*.sql.gz
+            **/*.bak
+            **/*.backup
+            **/*.log
+            **/error_log
+            **/addons/error_log.txt
+            **/debug_*.php
+            **/test_*.php
+            **/*firebase_notification_key*.json*
+            **/README.md
