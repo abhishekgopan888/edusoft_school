@@ -138,6 +138,8 @@ jobs:
             **/backend/installer_template/**
             **/application/tmp/**
             **/api/swagger-ui-extracted/**
+            **/application/third_party/billplz/**
+            **/api/application/third_party/billplz/**
             **/.env*
             **/application/config/database.php
             **/api/application/config/database.php

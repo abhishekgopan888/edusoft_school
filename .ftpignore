@@ -30,6 +30,10 @@ backend/usertemplate/**
 backend/fullcalendar/**
 backend/installer_template/**
 
+# --- Static Third Party Packages (Already on Server) ---
+application/third_party/billplz/**
+api/application/third_party/billplz/**
+
 # --- Production Sensitive Configs (Keep Live Server Configs Intact) ---
 .env
 .env.*
