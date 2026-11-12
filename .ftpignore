@@ -1,0 +1,70 @@
+# =====================================================================
+# FTP Ignore Configuration
+# =====================================================================
+
+# --- Git & GitHub Workflow Files ---
+.git*
+.git/**
+.github/**
+
+# --- IDE & Editor Files ---
+.idea/**
+.vscode/**
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Dependencies & Package Managers ---
+node_modules/**
+vendor/**
+api/vendor/**
+composer.phar
+composer.json
+composer.lock
+
+# --- Production Sensitive Configs (Keep Live Server Configs Intact) ---
+.env
+.env.*
+application/config/database.php
+api/application/config/database.php
+
+# --- User Uploads & Media (Preserve Live Server Uploads) ---
+uploads/**
+
+# --- Logs & Cache ---
+application/logs/**
+application/cache/**
+api/application/logs/**
+api/application/cache/**
+*.log
+error_log
+addons/error_log.txt
+
+# --- Temporary, Backups & Dumps ---
+temp/**
+backup/**
+scratch/**
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.tmp
+*.sql
+*.sql.gz
+*.bak
+*.backup
+
+# --- Debug & Test Scripts ---
+debug_*.php
+test_*.php
+
+# --- Secrets & Certificates ---
+*firebase_notification_key*.json*
+*.pem
+*.key
+*.p12
+*.keystore
+
+# --- Documentation ---
+README.md

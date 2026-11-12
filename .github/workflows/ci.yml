@@ -127,9 +127,16 @@ jobs:
             **/.git*
             **/.git*/**
             **/.github/**
+            **/.idea/**
+            **/.vscode/**
+            **/.DS_Store
+            **/Thumbs.db
             **/node_modules/**
             **/vendor/**
             **/api/vendor/**
+            **/composer.phar
+            **/composer.json
+            **/composer.lock
             **/.env*
             **/application/config/database.php
             **/api/application/config/database.php
@@ -142,7 +149,11 @@ jobs:
             **/backup/**
             **/scratch/**
             **/*.zip
+            **/*.tar
             **/*.tar.gz
+            **/*.rar
+            **/*.7z
+            **/*.tmp
             **/*.sql
             **/*.sql.gz
             **/*.bak
@@ -153,4 +164,8 @@ jobs:
             **/debug_*.php
             **/test_*.php
             **/*firebase_notification_key*.json*
+            **/*.pem
+            **/*.key
+            **/*.p12
+            **/*.keystore
             **/README.md
