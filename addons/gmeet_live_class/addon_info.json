@@ -1,0 +1,21 @@
+{
+    "product_id": "28941973",
+    "name": "Smart School Gmeet Live Class",
+    "installation_by": "NULL",
+    "version": "7.0",
+    "description": "Gmeet Live Class addon adds Gmeet Live Class module in Smart School. Using this module teacher/staff can create live online classes using http://meet.google.com service. Further students can join these classes.",
+    "version_list": [  
+		 {
+            "version": "6.0",
+            "order": "6",
+            "folder_path":"./addons/gmeet_live_class/updater/v6",
+            "sort_description": "sort_description"
+        },      
+        {
+            "version": "7.0",
+            "order": "7",
+            "folder_path":"./addons/gmeet_live_class/updater/v7",
+            "sort_description": "sort_description"
+        }
+    ]
+}

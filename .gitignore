@@ -1,0 +1,82 @@
+# =====================================================================
+# Git Ignore for School Management System (CodeIgniter PHP)
+# =====================================================================
+
+# --- Archives & Compressed Files ---
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.gz
+
+# --- Backups & Database Exports ---
+backup/
+*.sql
+*.sql.gz
+*.bak
+*.backup
+
+# --- Temporary & Scratch Directories ---
+temp/
+scratch/
+*/temp/
+*.tmp
+
+# --- Debug & Test Scripts ---
+debug_*.php
+debug_ci_pw.php
+debug_pw.php
+
+# --- Logs & Error Reports ---
+error_log
+*.log
+addons/error_log.txt
+application/logs/*
+!application/logs/index.html
+api/application/logs/*
+!api/application/logs/index.html
+
+# --- Cache ---
+application/cache/*
+!application/cache/index.html
+api/application/cache/*
+!api/application/cache/index.html
+
+# --- User Uploads ---
+uploads/*
+!uploads/index.html
+
+# --- Dependencies ---
+vendor/
+api/vendor/
+composer.phar
+
+# --- Duplicate Root Folders (extracted copies; active code is in application/) ---
+/controllers/
+/models/
+/views/
+
+# --- Operating System & Editor Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*~
+
+# --- Environment & Secrets ---
+.env
+.env.*
+application/third_party/firebase_notification_key.json
+*firebase_notification_key.json
+*.pem
+*.key
+*.p12
+*.keystore
+.htaccess

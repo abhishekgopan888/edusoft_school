@@ -1,0 +1,1714 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "School Management API",
+        "description": "Comprehensive API documentation for School Management System including Authentication, Drivers, Attenders, Students, Student Details, Dashboard, and System Health endpoints.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api",
+            "description": "Current Server (Auto /api - Recommended for all hosts)"
+        },
+        {
+            "url": "https://school.onedusoft.in/api",
+            "description": "Production Server (school.onedusoft.in)"
+        },
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Local Development Server"
+        },
+        {
+            "url": "http://localhost/school/api",
+            "description": "Local Wamp Server"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Authentication & API Keys",
+            "description": "Endpoints for user authentication and API key management."
+        },
+        {
+            "name": "Attender Management",
+            "description": "Endpoints for managing transport attenders. Requires X-API-Key: attender-api-secret-key-2026"
+        },
+        {
+            "name": "Boarding Point Tracking",
+            "description": "Endpoints for managing student bus boarding records with student details, grade, address, search, and filtering."
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard API returning Bus details, Route details, and Student transport status (Total, Boarded, Dropped, Pending) under a single API key: dashboard-api-secret-key-2026"
+        },
+        {
+            "name": "Driver Management",
+            "description": "Endpoints for managing transport drivers. Requires X-API-Key: driver-api-secret-key-2026"
+        },
+        {
+            "name": "Health",
+            "description": "Simple health and availability endpoints."
+        },
+        {
+            "name": "Route Management",
+            "description": "Endpoints for managing and retrieving school transport routes, assigned buses (vehicles), and pickup points. Requires X-API-Key or Bearer token."
+        },
+        {
+            "name": "Student Details Management",
+            "description": "Endpoints for searching, viewing, registering student details, and managing student boarding & drop status (Pending, Boarded, Dropped). Requires X-API-Key: student-details-api-secret-key-2026"
+        },
+        {
+            "name": "Students",
+            "description": "Endpoints for student management."
+        },
+        {
+            "name": "Users",
+            "description": "User related endpoints for the API."
+        }
+    ],
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "summary": "User Login",
+                "description": "Authenticates a staff/admin, student, or parent user and returns the login token and user session.",
+                "tags": [
+                    "Authentication & API Keys"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login response with token"
+                    },
+                    "400": {
+                        "description": "Username and password are required"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "username",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "username": {
+                                        "type": "string",
+                                        "example": "admin@gmail.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "K3lpm@lpm"
+                                    },
+                                    "deviceToken": {
+                                        "type": "string",
+                                        "example": "",
+                                        "description": "Optional device token"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/keys": {
+            "get": {
+                "summary": "Get Authentication API Keys",
+                "description": "Retrieves API keys used by Driver, Attender, Studentdetails, Dashboard and system admin requests.",
+                "tags": [
+                    "Authentication & API Keys"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "API keys retrieved successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/attenders": {
+            "get": {
+                "summary": "Get all attenders list",
+                "description": "Retrieves list of all transport attenders.",
+                "tags": [
+                    "Attender Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of attenders retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing API key"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/attenders/details": {
+            "get": {
+                "summary": "Get single attender details",
+                "description": "Retrieves details of a specific attender by ID.",
+                "tags": [
+                    "Attender Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attender details retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Attender not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Attender ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/attenders/add": {
+            "post": {
+                "summary": "Add new attender",
+                "description": "Creates a new attender record.",
+                "tags": [
+                    "Attender Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attender created successfully"
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "attender_name"
+                                ],
+                                "properties": {
+                                    "attender_name": {
+                                        "type": "string",
+                                        "example": "Akhila"
+                                    },
+                                    "age": {
+                                        "type": "integer",
+                                        "example": 43
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "Kollam"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "Active",
+                                        "enum": [
+                                            "Active",
+                                            "Inactive",
+                                            "leave"
+                                        ]
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "School transport attender"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/attenders/edit": {
+            "post": {
+                "summary": "Edit attender details",
+                "description": "Updates an existing attender record.",
+                "tags": [
+                    "Attender Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attender updated successfully"
+                    },
+                    "404": {
+                        "description": "Attender not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "id",
+                                    "attender_name"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "attender_name": {
+                                        "type": "string",
+                                        "example": "Akhila"
+                                    },
+                                    "age": {
+                                        "type": "integer",
+                                        "example": 44
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "Kollam"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "Active"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Updated note"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/attenders/delete": {
+            "delete": {
+                "summary": "Delete attender",
+                "description": "Removes an attender record by ID.",
+                "tags": [
+                    "Attender Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attender deleted successfully"
+                    },
+                    "404": {
+                        "description": "Attender not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Attender ID to delete",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/boardingpoint": {
+            "get": {
+                "summary": "Get all boarding records with filters",
+                "description": "Retrieves list of student bus boarding records with student name, grade, address, vehicle, and attender details. Supports filtering by status, busid, attenderid, studentid, date, and keyword search.",
+                "tags": [
+                    "Boarding Point Tracking"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Boarding records retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by status (pending, boarded, deboarded, dropped)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "boarded",
+                                "deboarded",
+                                "dropped"
+                            ],
+                            "example": "boarded"
+                        }
+                    },
+                    {
+                        "name": "busid",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Bus/Vehicle ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    },
+                    {
+                        "name": "attenderid",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Attender ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "studentid",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Student ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 101
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by record date (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-08-06"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "description": "Search by student name, admission no, roll no, grade, vehicle no, attender name, or address",
+                        "schema": {
+                            "type": "string",
+                            "example": "John"
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/boardingpoint/details": {
+            "get": {
+                "summary": "Get single boarding record details",
+                "description": "Retrieves details of a specific boarding record by ID including student info, grade, and address.",
+                "tags": [
+                    "Boarding Point Tracking"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Record details retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Record not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Boarding record ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/boardingpoint/add": {
+            "post": {
+                "summary": "Add new boarding entry",
+                "description": "Creates a new boarding entry for a student with status (pending, boarded, deboarded, dropped). Bus ID is optional (defaults to student's assigned bus or 0 if unassigned).",
+                "tags": [
+                    "Boarding Point Tracking"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Boarding record created successfully"
+                    },
+                    "400": {
+                        "description": "Required fields missing: studentid, attenderid or invalid status"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "studentid",
+                                    "attenderid"
+                                ],
+                                "properties": {
+                                    "studentid": {
+                                        "type": "integer",
+                                        "example": 816,
+                                        "description": "Student ID"
+                                    },
+                                    "busid": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "example": 0,
+                                        "description": "Bus ID (optional/nullable, defaults to student's assigned bus or 0 if unassigned)"
+                                    },
+                                    "attenderid": {
+                                        "type": "integer",
+                                        "example": 5,
+                                        "description": "Attender ID"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pending",
+                                            "boarded",
+                                            "deboarded",
+                                            "dropped"
+                                        ],
+                                        "example": "boarded",
+                                        "description": "Boarding status"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/boardingpoint/update_status": {
+            "post": {
+                "summary": "Update student boarding status",
+                "description": "Updates the status (pending, boarded, deboarded, dropped) of a boarding record by ID or studentid.",
+                "tags": [
+                    "Boarding Point Tracking"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Boarding status updated successfully"
+                    },
+                    "400": {
+                        "description": "Missing required fields or parameters"
+                    },
+                    "404": {
+                        "description": "Boarding record not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "description": "Boarding record ID"
+                                    },
+                                    "studentid": {
+                                        "type": "integer",
+                                        "example": 101,
+                                        "description": "Student ID (if ID is not provided)"
+                                    },
+                                    "busid": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "example": 5,
+                                        "description": "Bus ID (optional/nullable)"
+                                    },
+                                    "attenderid": {
+                                        "type": "integer",
+                                        "example": 2,
+                                        "description": "Attender ID (optional)"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pending",
+                                            "boarded",
+                                            "deboarded",
+                                            "dropped"
+                                        ],
+                                        "example": "boarded",
+                                        "description": "New status value (pending, boarded, deboarded, dropped)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/boardingpoint/delete": {
+            "delete": {
+                "summary": "Delete boarding record",
+                "description": "Removes a boarding record by ID.",
+                "tags": [
+                    "Boarding Point Tracking"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Boarding record deleted successfully"
+                    },
+                    "404": {
+                        "description": "Record not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Boarding record ID to delete",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard": {
+            "get": {
+                "summary": "Get Dashboard summary (Bus details, Route details, Student boarding stats)",
+                "description": "Retrieves complete dashboard overview including bus details, route details, total students, total students boarded, total students dropped, and total pending students in a single response.",
+                "tags": [
+                    "Dashboard"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dashboard data retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing API key"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "api_key",
+                        "in": "query",
+                        "required": false,
+                        "description": "API Key for authentication. Defaults to dashboard-api-secret-key-2026 if omitted.",
+                        "schema": {
+                            "type": "string",
+                            "example": "dashboard-api-secret-key-2026"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "description": "Date for attendance/boarding stats (YYYY-MM-DD). Defaults to today.",
+                        "schema": {
+                            "type": "string",
+                            "example": "2026-08-05"
+                        }
+                    },
+                    {
+                        "name": "route_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter dashboard data by specific Route ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "vehicle_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter dashboard data by specific Vehicle ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/drivers": {
+            "get": {
+                "summary": "Get all drivers list",
+                "description": "Retrieves list of all transport drivers.",
+                "tags": [
+                    "Driver Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of drivers retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing API key"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/drivers/details": {
+            "get": {
+                "summary": "Get single driver details",
+                "description": "Retrieves details of a specific driver by ID.",
+                "tags": [
+                    "Driver Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Driver details retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Driver not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Driver ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/drivers/add": {
+            "post": {
+                "summary": "Add new driver",
+                "description": "Creates a new driver record.",
+                "tags": [
+                    "Driver Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Driver created successfully"
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "driver_name",
+                                    "licence",
+                                    "contact"
+                                ],
+                                "properties": {
+                                    "driver_name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "age": {
+                                        "type": "integer",
+                                        "example": 38
+                                    },
+                                    "licence": {
+                                        "type": "string",
+                                        "example": "DL-987654321"
+                                    },
+                                    "contact": {
+                                        "type": "string",
+                                        "example": "9876543210"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Main St, Springfield"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "Active",
+                                        "enum": [
+                                            "Active",
+                                            "Inactive",
+                                            "leave"
+                                        ]
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Experienced driver"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/drivers/edit": {
+            "post": {
+                "summary": "Edit driver details",
+                "description": "Updates an existing driver record.",
+                "tags": [
+                    "Driver Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Driver updated successfully"
+                    },
+                    "404": {
+                        "description": "Driver not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "id",
+                                    "driver_name"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "driver_name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "age": {
+                                        "type": "integer",
+                                        "example": 39
+                                    },
+                                    "licence": {
+                                        "type": "string",
+                                        "example": "DL-987654321"
+                                    },
+                                    "contact": {
+                                        "type": "string",
+                                        "example": "9876543210"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "456 Elm St, Springfield"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "example": "Active"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Updated note"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/drivers/delete": {
+            "delete": {
+                "summary": "Delete driver",
+                "description": "Removes a driver record by ID.",
+                "tags": [
+                    "Driver Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Driver deleted successfully"
+                    },
+                    "404": {
+                        "description": "Driver not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Driver ID to delete",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/health/ping": {
+            "get": {
+                "summary": "Ping the API",
+                "description": "Returns a simple success response to confirm the API is reachable.",
+                "tags": [
+                    "Health"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        },
+        "/health/status": {
+            "get": {
+                "summary": "Get API status",
+                "description": "Returns the current API status and environment details.",
+                "tags": [
+                    "Health"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        },
+        "/routes": {
+            "get": {
+                "summary": "Get routes by bus ID or all routes",
+                "description": "Retrieves transport routes with their assigned bus details (bus number, model, driver, attender) and all pickup points. Pass bus_id (or busid / vehicle_id) to filter routes for a specific bus.",
+                "tags": [
+                    "Route Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of routes and assigned pickup points retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing authentication token / API key"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "bus_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter routes by Bus / Vehicle ID (e.g. 5, 3)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "busid",
+                        "in": "query",
+                        "required": false,
+                        "description": "Alias for bus_id",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "vehicle_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Alias for bus_id (Vehicle ID)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "route_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by specific Route ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/routes/by_bus/{bus_id}": {
+            "get": {
+                "summary": "Get routes by specific bus ID",
+                "description": "Retrieves all routes, assigned bus details, driver, attender, and pickup points for a specific bus ID.",
+                "tags": [
+                    "Route Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Routes for the specified bus retrieved successfully"
+                    },
+                    "400": {
+                        "description": "Invalid or missing bus ID"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "bus_id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Bus / Vehicle ID (e.g. 3, 5)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/routes/details": {
+            "get": {
+                "summary": "Get single route details by route ID",
+                "description": "Retrieves full details of a specific route including assigned bus and pickup points by route ID.",
+                "tags": [
+                    "Route Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Route details retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Route not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Route ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/studentdetails": {
+            "get": {
+                "summary": "Get students list with attendance status and summary counts",
+                "description": "Retrieves a list of students with grade, address, boarding status (Pending, Boarded, Dropped), and summary counts.",
+                "tags": [
+                    "Student Details Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of students and status summary retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing API key"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "class_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Class ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "section_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Section ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Max number of records",
+                        "schema": {
+                            "type": "integer",
+                            "example": 50
+                        }
+                    }
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/studentdetails/details": {
+            "get": {
+                "summary": "Get single student details",
+                "description": "Retrieves full details of a specific student by student ID or parent phone number (parent login check without token).",
+                "tags": [
+                    "Student Details Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student details retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Student ID, Admission No, or Roll No",
+                        "schema": {
+                            "type": "integer",
+                            "example": 803
+                        }
+                    },
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Alias for student ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 803
+                        }
+                    },
+                    {
+                        "name": "parent_phone",
+                        "in": "query",
+                        "required": false,
+                        "description": "Parent phone number for parent login check without token",
+                        "schema": {
+                            "type": "string",
+                            "example": "9876543210"
+                        }
+                    }
+                ],
+                "security": []
+            }
+        },
+        "/studentdetails/latest_boarding_point": {
+            "get": {
+                "summary": "Get latest boarding point and transport info",
+                "description": "Retrieves the latest boarding point record for a student, along with assigned route, pickup point, bus information, driver, and attender details by student ID and parent phone number.",
+                "tags": [
+                    "Student Details Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Latest student boarding point and transport info retrieved successfully"
+                    },
+                    "400": {
+                        "description": "Missing student_id or phone_number"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Student ID, Admission No, or Roll No",
+                        "schema": {
+                            "type": "integer",
+                            "example": 803
+                        }
+                    },
+                    {
+                        "name": "phone_number",
+                        "in": "query",
+                        "required": false,
+                        "description": "Parent phone number (guardian, father, mother, or student mobile)",
+                        "schema": {
+                            "type": "string",
+                            "example": "9876543210"
+                        }
+                    }
+                ],
+                "security": []
+            }
+        },
+        "/studentdetails/status": {
+            "post": {
+                "summary": "Update student boarding status (Mark Boarded / Mark Dropped)",
+                "description": "Updates student boarding status. Accepts student_id (or admission_no) and action (\"Mark Boarded\", \"Mark Dropped\", \"Mark Pending\") or status (\"Boarded\", \"Dropped\", \"Pending\").",
+                "tags": [
+                    "Student Details Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student boarding status updated successfully"
+                    },
+                    "400": {
+                        "description": "Invalid parameters"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "student_id"
+                                ],
+                                "properties": {
+                                    "student_id": {
+                                        "type": "integer",
+                                        "example": 803,
+                                        "description": "Student ID or Admission No"
+                                    },
+                                    "action": {
+                                        "type": "string",
+                                        "example": "Mark Boarded",
+                                        "description": "Action: \"Mark Boarded\", \"Mark Dropped\", or \"Mark Pending\""
+                                    },
+                                    "boarding_status": {
+                                        "type": "string",
+                                        "example": "Boarded",
+                                        "description": "Status: \"Boarded\", \"Dropped\", or \"Pending\""
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/studentdetails/search": {
+            "post": {
+                "summary": "Search students",
+                "description": "Searches students by name, admission number, or roll number.",
+                "tags": [
+                    "Student Details Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Search results retrieved successfully"
+                    },
+                    "400": {
+                        "description": "Search text missing"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "search_text"
+                                ],
+                                "properties": {
+                                    "search_text": {
+                                        "type": "string",
+                                        "example": "Sophia"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/studentdetails/register": {
+            "post": {
+                "summary": "Register new student",
+                "description": "Registers a new student record into the system.",
+                "tags": [
+                    "Student Details Management"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student registered successfully"
+                    },
+                    "400": {
+                        "description": "Required fields missing"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "name",
+                                    "student_class",
+                                    "division"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Sophia Carter"
+                                    },
+                                    "student_class": {
+                                        "type": "string",
+                                        "example": "10"
+                                    },
+                                    "division": {
+                                        "type": "string",
+                                        "example": "A"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Tech City"
+                                    },
+                                    "dob": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2008-04-12"
+                                    },
+                                    "phone_number": {
+                                        "type": "string",
+                                        "example": "9876543210",
+                                        "description": "Student phone / mobile number"
+                                    },
+                                    "mobileno": {
+                                        "type": "string",
+                                        "example": "9876543210",
+                                        "description": "Alias for student phone number"
+                                    },
+                                    "guardian_name": {
+                                        "type": "string",
+                                        "example": "Michael Carter"
+                                    },
+                                    "guardian_phone": {
+                                        "type": "string",
+                                        "example": "9876543210"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/v1/register-student": {
+            "post": {
+                "summary": "Register a new student",
+                "description": "Registers a new student into the school management system.",
+                "tags": [
+                    "Students"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Student registered successfully"
+                    },
+                    "400": {
+                        "description": "Required fields missing"
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid X-API-Key"
+                    },
+                    "404": {
+                        "description": "Class or Division/Section not found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "name",
+                                    "student_class",
+                                    "division"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Sophia Carter"
+                                    },
+                                    "student_class": {
+                                        "type": "string",
+                                        "example": "10"
+                                    },
+                                    "division": {
+                                        "type": "string",
+                                        "example": "A"
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Innovation Drive, Tech City"
+                                    },
+                                    "dob": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2008-04-12"
+                                    },
+                                    "phone_number": {
+                                        "type": "string",
+                                        "example": "9876543210",
+                                        "description": "Student phone / mobile number"
+                                    },
+                                    "mobileno": {
+                                        "type": "string",
+                                        "example": "9876543210",
+                                        "description": "Alias for student mobile number"
+                                    },
+                                    "guardian_name": {
+                                        "type": "string",
+                                        "example": "Michael Carter"
+                                    },
+                                    "guardian_phone": {
+                                        "type": "string",
+                                        "example": "9876543210"
+                                    },
+                                    "link": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "example": "https://demo-academy.onedusoft.in/site/login"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/users/list-users": {
+            "get": {
+                "summary": "List users",
+                "description": "Returns a list of users.",
+                "tags": [
+                    "Users"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        },
+        "/users/show-user": {
+            "get": {
+                "summary": "Show user details",
+                "description": "Returns a single user by id.",
+                "tags": [
+                    "Users"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        },
+        "/users/create-user": {
+            "post": {
+                "summary": "Create a new user",
+                "description": "Creates a new user with the provided payload.",
+                "tags": [
+                    "Users"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "BearerAuth": []
+        },
+        {
+            "ApiKeyAuth": []
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Bearer token authentication"
+            },
+            "ApiKeyAuth": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key",
+                "description": "API Key authentication via X-API-Key header (e.g. driver-api-secret-key-2026, attender-api-secret-key-2026, student-details-api-secret-key-2026, dashboard-api-secret-key-2026, system-admin-api-key-2026)"
+            }
+        }
+    }
+}

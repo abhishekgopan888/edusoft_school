@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Allow clean URLs on both local and production without hardcoding paths
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L,QSA]
+
+# Pass Authorization and X-API-Key headers through Apache to PHP
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+RewriteCond %{HTTP:X-API-KEY} ^(.*)
+RewriteRule .* - [e=HTTP_X_API_KEY:%1]
+</IfModule>
