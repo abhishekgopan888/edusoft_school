@@ -23,6 +23,13 @@ composer.phar
 composer.json
 composer.lock
 
+# --- Static UI Assets (Already on Server) ---
+backend/plugins/**
+backend/themes/**
+backend/usertemplate/**
+backend/fullcalendar/**
+backend/installer_template/**
+
 # --- Production Sensitive Configs (Keep Live Server Configs Intact) ---
 .env
 .env.*
@@ -45,6 +52,8 @@ addons/error_log.txt
 temp/**
 backup/**
 scratch/**
+application/tmp/**
+api/swagger-ui-extracted/**
 *.zip
 *.tar
 *.tar.gz

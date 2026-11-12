@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School API Docs</title>
-    <link rel="stylesheet" href="<?php echo base_url('api/swagger-ui-extracted/swagger-ui-5.32.8/dist/swagger-ui.css'); ?>" onerror="this.onerror=null;this.href='https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css';">
+    <link rel="stylesheet" href="<?php echo base_url('api/swagger-ui-assets/swagger-ui.css'); ?>" onerror="this.onerror=null;this.href='https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css';">
     <style>
         html {
             box-sizing: border-box;
@@ -25,8 +25,8 @@
 </head>
 <body>
     <div id="swagger-ui"></div>
-    <script src="<?php echo base_url('api/swagger-ui-extracted/swagger-ui-5.32.8/dist/swagger-ui-bundle.js'); ?>"></script>
-    <script src="<?php echo base_url('api/swagger-ui-extracted/swagger-ui-5.32.8/dist/swagger-ui-standalone-preset.js'); ?>"></script>
+    <script src="<?php echo base_url('api/swagger-ui-assets/swagger-ui-bundle.js'); ?>"></script>
+    <script src="<?php echo base_url('api/swagger-ui-assets/swagger-ui-standalone-preset.js'); ?>"></script>
     <script>
         function initSwagger() {
             if (typeof SwaggerUIBundle === 'undefined') {

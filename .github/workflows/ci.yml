@@ -131,6 +131,13 @@ jobs:
             **/vendor/**
             **/api/vendor/**
             **/addons/**
+            **/backend/plugins/**
+            **/backend/themes/**
+            **/backend/usertemplate/**
+            **/backend/fullcalendar/**
+            **/backend/installer_template/**
+            **/application/tmp/**
+            **/api/swagger-ui-extracted/**
             **/.env*
             **/application/config/database.php
             **/api/application/config/database.php

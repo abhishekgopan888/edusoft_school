@@ -22,6 +22,8 @@ temp/
 scratch/
 */temp/
 *.tmp
+application/tmp/
+api/swagger-ui-extracted/
 
 # --- Debug & Test Scripts ---
 debug_*.php
