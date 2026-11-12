@@ -133,3 +133,28 @@ jobs:
             **/test_*.php
             **/*firebase_notification_key*.json*
             **/README.md
+
+            **/.env*
+            **/application/config/database.php
+            **/api/application/config/database.php
+            **/uploads/**
+            **/application/logs/**
+            **/application/cache/**
+            **/api/application/logs/**
+            **/api/application/cache/**
+            **/temp/**
+            **/backup/**
+            **/scratch/**
+            **/*.zip
+            **/*.tar.gz
+            **/*.sql
+            **/*.sql.gz
+            **/*.bak
+            **/*.backup
+            **/*.log
+            **/error_log
+            **/addons/error_log.txt
+            **/debug_*.php
+            **/test_*.php
+            **/*firebase_notification_key*.json*
+            **/README.md
