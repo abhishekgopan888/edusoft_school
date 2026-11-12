@@ -74,7 +74,8 @@ desktop.ini
 .env
 .env.*
 application/third_party/firebase_notification_key.json
-*firebase_notification_key.json
+application/third_party/firebase_notification_key.json.example
+*firebase_notification_key*.json*
 *.pem
 *.key
 *.p12
