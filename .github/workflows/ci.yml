@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  php-ci:
+    name: PHP ${{ matrix.php-version }} Lint & CI Check
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.1', '8.2']
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP Environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, intl, curl, json, mysqli, gd, xml, zip, pdo
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer Files
+        run: |
+          composer validate --no-check-publish composer.json
+          composer validate --no-check-publish api/composer.json
+
+      - name: Cache Root Composer Dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-root-${{ matrix.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-root-${{ matrix.php-version }}-
+
+      - name: Install Root Dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Cache API Composer Dependencies
+        uses: actions/cache@v4
+        with:
+          path: api/vendor
+          key: ${{ runner.os }}-composer-api-${{ matrix.php-version }}-${{ hashFiles('api/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-api-${{ matrix.php-version }}-
+
+      - name: Install API Dependencies
+        working-directory: ./api
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: PHP Syntax Check (Lint)
+        run: |
+          echo "Linting application PHP files..."
+          find application/ -type f -name "*.php" -print0 | xargs -0 -n 1 -P 4 php -l
+          echo "Linting API PHP files..."
+          find api/ -type f -name "*.php" ! -path "api/vendor/*" -print0 | xargs -0 -n 1 -P 4 php -l
+
+      - name: Verify Swagger Documentation Generation
+        run: |
+          php api/generate_swagger.php
+          test -f api/swagger.json
+          test -f api/swagger.yaml
