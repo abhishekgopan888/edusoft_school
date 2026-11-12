@@ -14,10 +14,11 @@
 Thumbs.db
 desktop.ini
 
-# --- Dependencies & Package Managers ---
+# --- Dependencies & Addons ---
 node_modules/**
 vendor/**
 api/vendor/**
+addons/**
 composer.phar
 composer.json
 composer.lock

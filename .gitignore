@@ -52,6 +52,9 @@ vendor/
 api/vendor/
 composer.phar
 
+# --- Addons ---
+addons/
+
 # --- Duplicate Root Folders (extracted copies; active code is in application/) ---
 /controllers/
 /models/
