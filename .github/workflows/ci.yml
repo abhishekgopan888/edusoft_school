@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.1', '8.2']
+        php-version: ['8.2', '8.3']
 
     steps:
       - name: Checkout Code
@@ -59,11 +59,32 @@ jobs:
 
       - name: PHP Syntax Check (Lint)
         run: |
-          echo "Linting application PHP files..."
-          find application/ -type f -name "*.php" -print0 | xargs -0 -n 1 -P 4 php -l
-
-          echo "Linting API PHP files..."
-          find api/ -type f -name "*.php" ! -path "api/vendor/*" -print0 | xargs -0 -n 1 -P 4 php -l
+          php -r '
+            $dirs = ["application", "api", "system"];
+            $errors = [];
+            $count = 0;
+            foreach ($dirs as $dir) {
+                if (!is_dir($dir)) continue;
+                $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
+                foreach ($it as $file) {
+                    if ($file->isFile() && $file->getExtension() === "php") {
+                        if (strpos($file->getPathname(), "vendor") !== false) continue;
+                        $count++;
+                        $code = file_get_contents($file->getPathname());
+                        try {
+                            token_get_all($code, TOKEN_PARSE);
+                        } catch (ParseError $e) {
+                            $errors[] = $file->getPathname() . ":" . $e->getLine() . " - " . $e->getMessage();
+                        }
+                    }
+                }
+            }
+            echo "Successfully linted $count PHP files in application/, api/, and system/\n";
+            if (!empty($errors)) {
+                echo "\nSyntax Errors Found (" . count($errors) . "):\n" . implode("\n", $errors) . "\n";
+                exit(1);
+            }
+          '
 
       - name: Verify Swagger Documentation Generation
         run: |
@@ -96,7 +117,7 @@ jobs:
           port: 21
 
           local-dir: ./
-          server-dir: /public_html/
+          server-dir: /
 
           # Extended connection and transfer timeout (in milliseconds)
           timeout: 60000
@@ -109,31 +130,6 @@ jobs:
             **/node_modules/**
             **/vendor/**
             **/api/vendor/**
-            **/.env*
-            **/application/config/database.php
-            **/api/application/config/database.php
-            **/uploads/**
-            **/application/logs/**
-            **/application/cache/**
-            **/api/application/logs/**
-            **/api/application/cache/**
-            **/temp/**
-            **/backup/**
-            **/scratch/**
-            **/*.zip
-            **/*.tar.gz
-            **/*.sql
-            **/*.sql.gz
-            **/*.bak
-            **/*.backup
-            **/*.log
-            **/error_log
-            **/addons/error_log.txt
-            **/debug_*.php
-            **/test_*.php
-            **/*firebase_notification_key*.json*
-            **/README.md
-
             **/.env*
             **/application/config/database.php
             **/api/application/config/database.php

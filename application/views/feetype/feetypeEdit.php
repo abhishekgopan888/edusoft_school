@@ -55,6 +55,7 @@
                         </form>
                     </div>
                 </div>          
+                <?php } ?>
                 <div class="col-md-<?php
                 if ($this->rbac->hasPrivilege('fees_type', 'can_add') || $this->rbac->hasPrivilege('fees_type', 'can_edit')) {
                     echo "8";
