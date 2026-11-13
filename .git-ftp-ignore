@@ -30,9 +30,19 @@ backend/usertemplate/**
 backend/fullcalendar/**
 backend/installer_template/**
 
-# --- Static Third Party Packages (Already on Server) ---
-application/third_party/billplz/**
-api/application/third_party/billplz/**
+# --- Static Language Translations (Already on Server) ---
+application/language/**
+
+# --- Heavy Static Bundled Libraries & Third Party (Already on Server) ---
+application/libraries/PHPMailer/**
+application/libraries/Zend/**
+application/libraries/Paytm_lib/**
+application/third_party/**
+api/application/third_party/**
+
+# --- CodeIgniter Core (Already on Server) ---
+system/**
+api/system/**
 
 # --- Production Sensitive Configs (Keep Live Server Configs Intact) ---
 .env

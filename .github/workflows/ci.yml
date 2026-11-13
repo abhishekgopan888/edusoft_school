@@ -96,7 +96,7 @@ jobs:
     name: FTP Deployment
     runs-on: ubuntu-latest
     needs: php-ci
-    timeout-minutes: 60
+    timeout-minutes: 15
 
     # Deploy only after successful CI on main branch (supports push and manual trigger)
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
@@ -121,6 +121,7 @@ jobs:
 
           # Extended connection and transfer timeout (in milliseconds)
           timeout: 60000
+          log-level: verbose
 
           # Deployment exclusions (CodeIgniter specific cache/logs, server database configs, uploads, backups, temp & secrets)
           exclude: |
@@ -138,8 +139,14 @@ jobs:
             **/backend/installer_template/**
             **/application/tmp/**
             **/api/swagger-ui-extracted/**
-            **/application/third_party/billplz/**
-            **/api/application/third_party/billplz/**
+            **/application/third_party/**
+            **/api/application/third_party/**
+            **/application/language/**
+            **/application/libraries/PHPMailer/**
+            **/application/libraries/Zend/**
+            **/application/libraries/Paytm_lib/**
+            **/system/**
+            **/api/system/**
             **/.env*
             **/application/config/database.php
             **/api/application/config/database.php
