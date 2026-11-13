@@ -14,7 +14,7 @@ class Base extends CI_Controller
         'OQMwOANgNg'
     ];
 
-    protected function _check_auth($allowed_keys = [])
+    protected function _check_auth($allowed_keys = [], $required = true)
     {
         $api_key = $this->input->get_request_header('X-API-Key', true);
         if (empty($api_key)) {
@@ -45,6 +45,10 @@ class Base extends CI_Controller
             if ($session && $session->expired_at >= date('Y-m-d H:i:s')) {
                 return true;
             }
+        }
+
+        if (!$required) {
+            return false;
         }
 
         $this->_error('Unauthorized - Invalid or missing authentication token / API key', 401);

@@ -1100,10 +1100,20 @@
                         "name": "pickup_point_id",
                         "in": "query",
                         "required": false,
-                        "description": "Filter routes by Pickup Point ID (e.g. 1, 2, 4). Alias: pickuppointid, pickup_point",
+                        "description": "Filter routes by Pickup Point ID (e.g. 1, 2, 4). Alias: pickuppointid",
                         "schema": {
                             "type": "integer",
                             "example": 2
+                        }
+                    },
+                    {
+                        "name": "pickup_point_name",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter routes by Pickup Point Name (e.g. Kanyakumarii, Demo Location). Case-insensitive search.",
+                        "schema": {
+                            "type": "string",
+                            "example": "Kanyakumarii"
                         }
                     }
                 ],
@@ -1113,7 +1123,8 @@
                     },
                     {
                         "ApiKeyAuth": []
-                    }
+                    },
+                    {}
                 ]
             }
         },
@@ -1153,7 +1164,8 @@
                     },
                     {
                         "ApiKeyAuth": []
-                    }
+                    },
+                    {}
                 ]
             }
         },
@@ -1193,7 +1205,8 @@
                     },
                     {
                         "ApiKeyAuth": []
-                    }
+                    },
+                    {}
                 ]
             }
         },

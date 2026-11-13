@@ -7,48 +7,62 @@ class Routes extends Base
 {
     public $swagger_meta = [
         'tag' => 'Route Management',
-        'description' => 'Endpoints for managing and retrieving school transport routes, assigned buses (vehicles), and pickup points. Requires X-API-Key or Bearer token.',
+        'description' => 'Endpoints for managing and retrieving school transport routes (from /admin/route), assigned vehicles/buses, and pickup points. Requires X-API-Key or Bearer token.',
         'methods' => [
             'index' => [
                 'path' => '/api/routes',
-                'summary' => 'Get routes by bus ID or all routes',
-                'description' => 'Retrieves transport routes with their assigned bus details (bus number, model, driver, attender) and all pickup points. Pass bus_id (or busid / vehicle_id) to filter routes for a specific bus.',
+                'summary' => 'Get transport routes with vehicle and pickup point details',
+                'description' => 'Retrieves school transport routes matching the admin route management page (/admin/route). Supports filtering by route_id, vehicle_id (or bus_id), and pickup_point_id.',
                 'http_method' => 'get',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
+                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
-                    [
-                        'name' => 'bus_id',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter routes by Bus / Vehicle ID (e.g. 5, 3). Also accepts alias vehicle_id or busid',
-                        'schema' => ['type' => 'integer', 'example' => 5]
-                    ],
                     [
                         'name' => 'route_id',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter by specific Route ID',
-                        'schema' => ['type' => 'integer', 'example' => 1]
+                        'description' => 'Filter by Route ID (e.g. 1, 2, 5). Alias: routeid, id',
+                        'schema' => ['type' => 'integer', 'example' => 2]
+                    ],
+                    [
+                        'name' => 'vehicle_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter by Vehicle / Bus ID (e.g. 2, 3, 5). Alias: vehicleid, bus_id, busid',
+                        'schema' => ['type' => 'integer', 'example' => 2]
+                    ],
+                    [
+                        'name' => 'pickup_point_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter by Pickup Point ID (e.g. 1, 2, 4). Alias: pickuppointid',
+                        'schema' => ['type' => 'integer', 'example' => 2]
+                    ],
+                    [
+                        'name' => 'pickup_point_name',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter routes by Pickup Point Name (e.g. Kanyakumarii, Demo Location). Case-insensitive search.',
+                        'schema' => ['type' => 'string', 'example' => 'Kanyakumarii']
                     ]
                 ],
                 'responses' => [
-                    '200' => ['description' => 'List of routes and assigned pickup points retrieved successfully'],
+                    '200' => ['description' => 'List of routes with assigned vehicles and pickup points retrieved successfully'],
                     '401' => ['description' => 'Unauthorized - Invalid or missing authentication token / API key']
                 ]
             ],
             'by_bus' => [
                 'path' => '/api/routes/by_bus/{bus_id}',
-                'summary' => 'Get routes by specific bus ID',
-                'description' => 'Retrieves all routes, assigned bus details, driver, attender, and pickup points for a specific bus ID.',
+                'summary' => 'Get routes by specific bus / vehicle ID',
+                'description' => 'Retrieves all routes, assigned bus details, driver, attender, and pickup points for a specific bus or vehicle ID.',
                 'http_method' => 'get',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
+                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
                     [
                         'name' => 'bus_id',
                         'in' => 'path',
                         'required' => true,
-                        'description' => 'Bus / Vehicle ID (e.g. 3, 5)',
-                        'schema' => ['type' => 'integer', 'example' => 3]
+                        'description' => 'Bus / Vehicle ID (e.g. 2, 3, 5)',
+                        'schema' => ['type' => 'integer', 'example' => 2]
                     ]
                 ],
                 'responses' => [
@@ -62,14 +76,14 @@ class Routes extends Base
                 'summary' => 'Get single route details by route ID',
                 'description' => 'Retrieves full details of a specific route including assigned bus and pickup points by route ID.',
                 'http_method' => 'get',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
+                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
                     [
                         'name' => 'id',
                         'in' => 'query',
                         'required' => true,
                         'description' => 'Route ID',
-                        'schema' => ['type' => 'integer', 'example' => 3]
+                        'schema' => ['type' => 'integer', 'example' => 2]
                     ]
                 ],
                 'responses' => [
@@ -90,29 +104,63 @@ class Routes extends Base
 
     /**
      * GET /api/routes
-     * Query parameters: bus_id, busid, vehicle_id, route_id, id
+     * Query parameters: route_id, vehicle_id, pickup_point_id, pickup_point_name (and aliases)
      */
     public function index()
     {
-        $this->_check_auth();
+        // Public/optional authentication so Swagger UI and client apps can query directly
+        $this->_check_auth([], false);
 
-        $bus_id = $this->input->get('bus_id');
-        if ($bus_id === null || $bus_id === '') {
-            $bus_id = $this->input->get('busid');
+        $vehicle_id = $this->input->get('vehicle_id');
+        if ($vehicle_id === null || $vehicle_id === '') {
+            $vehicle_id = $this->input->get('vehicleid');
         }
-        if ($bus_id === null || $bus_id === '') {
-            $bus_id = $this->input->get('vehicle_id');
+        if ($vehicle_id === null || $vehicle_id === '') {
+            $vehicle_id = $this->input->get('bus_id');
+        }
+        if ($vehicle_id === null || $vehicle_id === '') {
+            $vehicle_id = $this->input->get('busid');
         }
 
         $route_id = $this->input->get('route_id');
         if ($route_id === null || $route_id === '') {
+            $route_id = $this->input->get('routeid');
+        }
+        if ($route_id === null || $route_id === '') {
             $route_id = $this->input->get('id');
         }
 
-        $routes = $this->_get_routes_data($bus_id, $route_id);
+        $pickup_point_id = $this->input->get('pickup_point_id');
+        if ($pickup_point_id === null || $pickup_point_id === '') {
+            $pickup_point_id = $this->input->get('pickuppointid');
+        }
+        if (($pickup_point_id === null || $pickup_point_id === '') && is_numeric($this->input->get('pickup_point'))) {
+            $pickup_point_id = $this->input->get('pickup_point');
+        }
 
-        $msg = !empty($bus_id) 
-            ? 'Routes for bus ID ' . $bus_id . ' retrieved successfully' 
+        $pickup_point_name = $this->input->get('pickup_point_name');
+        if (empty($pickup_point_name) && !is_numeric($this->input->get('pickup_point'))) {
+            $pickup_point_name = $this->input->get('pickup_point');
+        }
+
+        $routes = $this->_get_routes_data($vehicle_id, $route_id, $pickup_point_id, $pickup_point_name);
+
+        $filters = [];
+        if (!empty($route_id)) {
+            $filters[] = 'route ID ' . $route_id;
+        }
+        if (!empty($vehicle_id)) {
+            $filters[] = 'vehicle ID ' . $vehicle_id;
+        }
+        if (!empty($pickup_point_id)) {
+            $filters[] = 'pickup point ID ' . $pickup_point_id;
+        }
+        if (!empty($pickup_point_name)) {
+            $filters[] = 'pickup point "' . $pickup_point_name . '"';
+        }
+
+        $msg = !empty($filters) 
+            ? 'Routes filtered by ' . implode(', ', $filters) . ' retrieved successfully' 
             : 'Routes retrieved successfully';
 
         $this->_success($msg, $routes);
@@ -123,7 +171,7 @@ class Routes extends Base
      */
     public function by_bus($bus_id = null)
     {
-        $this->_check_auth();
+        $this->_check_auth([], false);
 
         if ($bus_id === null || $bus_id === '') {
             $bus_id = $this->input->get('bus_id');
@@ -131,15 +179,18 @@ class Routes extends Base
         if ($bus_id === null || $bus_id === '') {
             $bus_id = $this->input->get('busid');
         }
+        if ($bus_id === null || $bus_id === '') {
+            $bus_id = $this->input->get('vehicle_id');
+        }
 
         if (empty($bus_id) || !is_numeric($bus_id)) {
-            $this->_error('Valid bus_id is required', 400);
+            $this->_error('Valid bus_id or vehicle_id is required', 400);
             return;
         }
 
-        $routes = $this->_get_routes_data($bus_id, null);
+        $routes = $this->_get_routes_data($bus_id, null, null, null);
 
-        $this->_success('Routes for bus ID ' . $bus_id . ' retrieved successfully', $routes);
+        $this->_success('Routes for vehicle/bus ID ' . $bus_id . ' retrieved successfully', $routes);
     }
 
     /**
@@ -147,11 +198,14 @@ class Routes extends Base
      */
     public function details()
     {
-        $this->_check_auth();
+        $this->_check_auth([], false);
 
         $id = $this->input->get('id');
         if (empty($id)) {
             $id = $this->input->get('route_id');
+        }
+        if (empty($id)) {
+            $id = $this->input->get('routeid');
         }
 
         if (empty($id) || !is_numeric($id)) {
@@ -159,7 +213,7 @@ class Routes extends Base
             return;
         }
 
-        $routes = $this->_get_routes_data(null, $id);
+        $routes = $this->_get_routes_data(null, $id, null, null);
         if (empty($routes)) {
             $this->_error('Route not found', 404);
             return;
@@ -169,9 +223,9 @@ class Routes extends Base
     }
 
     /**
-     * Query routes with bus and pickup points
+     * Query routes with vehicle and pickup points
      */
-    private function _get_routes_data($bus_id = null, $route_id = null)
+    private function _get_routes_data($vehicle_id = null, $route_id = null, $pickup_point_id = null, $pickup_point_name = null)
     {
         $this->db->select('
             transport_route.id as route_id,
@@ -179,8 +233,11 @@ class Routes extends Base
             transport_route.no_of_vehicle,
             transport_route.note,
             vehicle_routes.id as vehicle_route_id,
+            vehicle_routes.vehicle_id,
             vehicle_routes.vehicle_id as bus_id,
+            vehicles.vehicle_no,
             vehicles.vehicle_no as bus_no,
+            vehicles.vehicle_model,
             vehicles.vehicle_model as bus_model,
             vehicles.registration_number,
             vehicles.chasis_number,
@@ -198,12 +255,21 @@ class Routes extends Base
         ->join('drivers as v_drivers', 'v_drivers.id = vehicles.driver_id', 'left')
         ->join('attenders', 'attenders.id = vehicle_routes.attender_id', 'left');
 
-        if (!empty($bus_id)) {
-            $this->db->where('vehicle_routes.vehicle_id', $bus_id);
+        if (!empty($vehicle_id)) {
+            $this->db->where('vehicle_routes.vehicle_id', $vehicle_id);
         }
 
         if (!empty($route_id)) {
             $this->db->where('transport_route.id', $route_id);
+        }
+
+        if (!empty($pickup_point_id)) {
+            $this->db->where("transport_route.id IN (SELECT DISTINCT transport_route_id FROM route_pickup_point WHERE pickup_point_id = " . (int)$pickup_point_id . ")", null, false);
+        }
+
+        if (!empty($pickup_point_name)) {
+            $escaped_name = $this->db->escape_like_str($pickup_point_name);
+            $this->db->where("transport_route.id IN (SELECT DISTINCT rpp.transport_route_id FROM route_pickup_point rpp JOIN pickup_point pp ON pp.id = rpp.pickup_point_id WHERE pp.name LIKE '%{$escaped_name}%')", null, false);
         }
 
         $this->db->order_by('transport_route.id', 'ASC');
@@ -237,6 +303,9 @@ class Routes extends Base
 
             $pickup_points = $this->db->get()->result_array();
 
+            $point_names = array_filter(array_column($pickup_points, 'pickup_point_name'));
+            $route['pickup_point_name'] = !empty($point_names) ? reset($point_names) : null;
+            $route['pickup_point_names'] = implode(', ', $point_names);
             $route['pickup_points'] = $pickup_points;
             $route['total_pickup_points'] = count($pickup_points);
 
@@ -246,4 +315,3 @@ class Routes extends Base
         return $result;
     }
 }
-
