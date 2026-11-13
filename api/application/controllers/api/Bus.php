@@ -106,6 +106,53 @@ class Bus extends Base
     {
         parent::__construct();
         $this->load->database();
+        $this->_ensure_tables_exist();
+    }
+
+    /**
+     * Auto-create bus_locations and trips tables if they don't exist
+     */
+    private function _ensure_tables_exist()
+    {
+        if (!$this->db->table_exists('bus_locations')) {
+            $sql = "CREATE TABLE IF NOT EXISTS `bus_locations` (
+                `id` bigint(20) NOT NULL AUTO_INCREMENT,
+                `bus_id` varchar(100) NOT NULL,
+                `trip_id` varchar(100) DEFAULT NULL,
+                `latitude` decimal(10,8) NOT NULL,
+                `longitude` decimal(11,8) NOT NULL,
+                `speed` decimal(6,2) DEFAULT '0.00',
+                `heading` decimal(6,2) DEFAULT '0.00',
+                `recorded_at` datetime NOT NULL,
+                `created_at` datetime NOT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_bus_id` (`bus_id`),
+                KEY `idx_trip_id` (`trip_id`),
+                KEY `idx_recorded_at` (`recorded_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+            $this->db->query($sql);
+        }
+
+        if (!$this->db->table_exists('trips')) {
+            $sql = "CREATE TABLE IF NOT EXISTS `trips` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `bus_id` varchar(100) NOT NULL,
+                `route_id` int(11) NOT NULL,
+                `driver_id` varchar(100) NOT NULL DEFAULT '0',
+                `trip_type` varchar(50) NOT NULL DEFAULT 'pickup',
+                `status` varchar(50) NOT NULL DEFAULT 'started',
+                `start_time` datetime DEFAULT NULL,
+                `end_time` datetime DEFAULT NULL,
+                `note` text DEFAULT NULL,
+                `created_at` datetime NOT NULL,
+                `updated_at` datetime NOT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_bus_id` (`bus_id`),
+                KEY `idx_route_id` (`route_id`),
+                KEY `idx_status` (`status`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+            $this->db->query($sql);
+        }
     }
 
     /**

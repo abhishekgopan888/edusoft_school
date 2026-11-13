@@ -126,6 +126,34 @@ class Trip extends Base
     {
         parent::__construct();
         $this->load->database();
+        $this->_ensure_table_exists();
+    }
+
+    /**
+     * Auto-create trips table if it doesn't exist
+     */
+    private function _ensure_table_exists()
+    {
+        if (!$this->db->table_exists('trips')) {
+            $sql = "CREATE TABLE IF NOT EXISTS `trips` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `bus_id` varchar(100) NOT NULL,
+                `route_id` int(11) NOT NULL,
+                `driver_id` varchar(100) NOT NULL DEFAULT '0',
+                `trip_type` varchar(50) NOT NULL DEFAULT 'pickup',
+                `status` varchar(50) NOT NULL DEFAULT 'started',
+                `start_time` datetime DEFAULT NULL,
+                `end_time` datetime DEFAULT NULL,
+                `note` text DEFAULT NULL,
+                `created_at` datetime NOT NULL,
+                `updated_at` datetime NOT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_bus_id` (`bus_id`),
+                KEY `idx_route_id` (`route_id`),
+                KEY `idx_status` (`status`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8;";
+            $this->db->query($sql);
+        }
     }
 
     /**
