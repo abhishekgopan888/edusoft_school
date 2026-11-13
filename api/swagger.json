@@ -53,6 +53,10 @@
             "description": "Endpoints for managing and retrieving school transport routes, assigned buses (vehicles), and pickup points. Requires X-API-Key or Bearer token."
         },
         {
+            "name": "Trip Management",
+            "description": "Endpoints for starting, tracking, and completing bus transit trips by drivers/attenders in the Flutter app."
+        },
+        {
             "name": "Student Details Management",
             "description": "Endpoints for searching, viewing, registering student details, and managing student boarding & drop status (Pending, Boarded, Dropped). Requires X-API-Key: student-details-api-secret-key-2026"
         },
@@ -1209,6 +1213,173 @@
                         }
                     }
                 ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ]
+            }
+        },
+        "/trip/start": {
+            "post": {
+                "summary": "Start a new trip",
+                "description": "Creates and starts a new trip for a bus and route. Returns the created trip_id.",
+                "tags": [
+                    "Trip Management"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "bus_id",
+                                    "route_id"
+                                ],
+                                "properties": {
+                                    "bus_id": {
+                                        "type": "string",
+                                        "example": "12",
+                                        "description": "Bus / Vehicle ID or Bus Number"
+                                    },
+                                    "route_id": {
+                                        "type": "string",
+                                        "example": "2",
+                                        "description": "Transport Route ID"
+                                    },
+                                    "driver_id": {
+                                        "type": "string",
+                                        "example": "1",
+                                        "description": "Optional Driver ID (auto-detected if omitted)"
+                                    },
+                                    "trip_type": {
+                                        "type": "string",
+                                        "example": "pickup",
+                                        "description": "Trip type: pickup or drop (default: pickup)"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Morning pickup trip"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Trip started successfully, returns trip_id"
+                    },
+                    "400": {
+                        "description": "bus_id and route_id are required"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ]
+            }
+        },
+        "/trip/end": {
+            "post": {
+                "summary": "End an ongoing trip",
+                "description": "Marks a trip as completed with end_time.",
+                "tags": [
+                    "Trip Management"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "trip_id"
+                                ],
+                                "properties": {
+                                    "trip_id": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "description": "Trip ID returned from /api/trip/start"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Completed trip smoothly"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Trip ended successfully"
+                    },
+                    "400": {
+                        "description": "trip_id is required"
+                    },
+                    "404": {
+                        "description": "Trip not found"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ]
+            }
+        },
+        "/trip/status": {
+            "get": {
+                "summary": "Get trip status or active trip",
+                "description": "Gets trip status by trip_id, or finds the active trip by bus_id.",
+                "tags": [
+                    "Trip Management"
+                ],
+                "parameters": [
+                    {
+                        "name": "trip_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Trip ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "bus_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Bus / Vehicle ID to find currently active trip",
+                        "schema": {
+                            "type": "string",
+                            "example": "12"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trip status retrieved successfully"
+                    },
+                    "404": {
+                        "description": "No active trip found"
+                    }
+                },
                 "security": [
                     {
                         "BearerAuth": []

@@ -136,6 +136,14 @@ $route['api/route'] = 'routes/index';
 $route['api/route/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['api/route/details'] = 'routes/details';
 
+// Trip routes
+$route['trip/start'] = 'trip/start';
+$route['api/trip/start'] = 'trip/start';
+$route['trip/end'] = 'trip/end';
+$route['api/trip/end'] = 'trip/end';
+$route['trip/status'] = 'trip/status';
+$route['api/trip/status'] = 'trip/status';
+
 
 
 
