@@ -37,6 +37,10 @@
             "description": "Endpoints for managing student bus boarding records with student details, grade, address, search, and filtering."
         },
         {
+            "name": "Bus Live Location",
+            "description": "Real-time GPS tracking and telemetry endpoints for school buses. Used by the Flutter driver app to push live coordinates and parents/admin apps to track buses."
+        },
+        {
             "name": "Dashboard",
             "description": "Dashboard API returning Bus details, Route details, and Student transport status (Total, Boarded, Dropped, Pending) under a single API key: dashboard-api-secret-key-2026"
         },
@@ -384,6 +388,134 @@
                     {
                         "ApiKeyAuth": []
                     }
+                ]
+            }
+        },
+        "/bus/location": {
+            "post": {
+                "summary": "Record live bus location and GPS telemetry",
+                "description": "Receives live GPS coordinates (latitude, longitude), speed, heading, and timestamp for a bus during an active trip. Includes trip-based details in the response.",
+                "tags": [
+                    "Bus Live Location"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "bus_id",
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "bus_id": {
+                                        "type": "string",
+                                        "example": "BUS_08",
+                                        "description": "Bus identifier, vehicle ID, or registration number"
+                                    },
+                                    "trip_id": {
+                                        "type": "string",
+                                        "example": "TRIP_20261112_01",
+                                        "description": "Associated Trip ID"
+                                    },
+                                    "latitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 12.971598,
+                                        "description": "Current GPS Latitude"
+                                    },
+                                    "longitude": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 77.594562,
+                                        "description": "Current GPS Longitude"
+                                    },
+                                    "speed": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 34.2,
+                                        "description": "Speed in km/h (helps parents know if bus is moving)"
+                                    },
+                                    "heading": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 182.0,
+                                        "description": "Direction in degrees (0-360) so the icon rotates on the map"
+                                    },
+                                    "timestamp": {
+                                        "type": "string",
+                                        "example": "2026-11-12T07:15:23Z",
+                                        "description": "ISO 8601 GPS timestamp"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Bus location recorded successfully with trip details"
+                    },
+                    "400": {
+                        "description": "Validation error - bus_id, latitude, and longitude are required"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ]
+            },
+            "get": {
+                "summary": "Get latest live location for a bus or trip",
+                "description": "Retrieves the most recent GPS coordinates, speed, heading, and trip info for a given bus_id or trip_id.",
+                "tags": [
+                    "Bus Live Location"
+                ],
+                "parameters": [
+                    {
+                        "name": "bus_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Bus / Vehicle ID to retrieve latest location for",
+                        "schema": {
+                            "type": "string",
+                            "example": "BUS_08"
+                        }
+                    },
+                    {
+                        "name": "trip_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Trip ID to retrieve latest location for",
+                        "schema": {
+                            "type": "string",
+                            "example": "TRIP_20261112_01"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Latest bus location and telemetry retrieved successfully"
+                    },
+                    "404": {
+                        "description": "No location recorded yet for this bus or trip"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
                 ]
             }
         },

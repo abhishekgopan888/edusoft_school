@@ -144,6 +144,10 @@ $route['api/trip/end'] = 'trip/end';
 $route['trip/status'] = 'trip/status';
 $route['api/trip/status'] = 'trip/status';
 
+// Bus Location routes
+$route['bus/location'] = 'bus/location';
+$route['api/bus/location'] = 'bus/location';
+
 
 
 
