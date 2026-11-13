@@ -1062,8 +1062,8 @@
         },
         "/routes": {
             "get": {
-                "summary": "Get routes by bus ID or all routes",
-                "description": "Retrieves transport routes with their assigned bus details (bus number, model, driver, attender) and all pickup points. Pass bus_id (or busid / vehicle_id) to filter routes for a specific bus.",
+                "summary": "Get transport routes with vehicle and pickup point details",
+                "description": "Retrieves school transport routes matching the admin route management page (/admin/route). Supports filtering by route_id, vehicle_id (or bus_id), and pickup_point_id.",
                 "tags": [
                     "Route Management"
                 ],
@@ -1077,23 +1077,33 @@
                 },
                 "parameters": [
                     {
-                        "name": "bus_id",
-                        "in": "query",
-                        "required": false,
-                        "description": "Filter routes by Bus / Vehicle ID (e.g. 5, 3). Also accepts alias vehicle_id or busid",
-                        "schema": {
-                            "type": "integer",
-                            "example": 5
-                        }
-                    },
-                    {
                         "name": "route_id",
                         "in": "query",
                         "required": false,
-                        "description": "Filter by specific Route ID",
+                        "description": "Filter by Route ID (e.g. 1, 2, 5). Alias: routeid, id",
                         "schema": {
                             "type": "integer",
-                            "example": 1
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "vehicle_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Vehicle / Bus ID (e.g. 2, 3, 5). Alias: vehicleid, bus_id, busid",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "pickup_point_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter routes by Pickup Point ID (e.g. 1, 2, 4). Alias: pickuppointid, pickup_point",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
                         }
                     }
                 ],
