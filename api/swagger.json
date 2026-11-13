@@ -1077,20 +1077,30 @@
                 },
                 "parameters": [
                     {
-                        "name": "route_id",
+                        "name": "bus_number",
                         "in": "query",
                         "required": false,
-                        "description": "Filter by Route ID (e.g. 1, 2, 5). Alias: routeid, id",
+                        "description": "Bus Number / Vehicle Number from auth login (e.g. \"KL 38 M 0990\", \"KL 17 Y 8989\"). Alias: bus_no, vehicle_no",
                         "schema": {
-                            "type": "integer",
-                            "example": 2
+                            "type": "string",
+                            "example": "KL 38 M 0990"
                         }
                     },
                     {
                         "name": "vehicle_id",
                         "in": "query",
                         "required": false,
-                        "description": "Filter by Vehicle / Bus ID (e.g. 2, 3, 5). Alias: vehicleid, bus_id, busid",
+                        "description": "Vehicle / Bus ID (e.g. 2, 5) or Bus Number. Alias: vehicleid, bus_id, busid",
+                        "schema": {
+                            "type": "string",
+                            "example": "2"
+                        }
+                    },
+                    {
+                        "name": "route_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Route ID (optional, not required). Alias: routeid, id",
                         "schema": {
                             "type": "integer",
                             "example": 2
@@ -1100,7 +1110,7 @@
                         "name": "pickup_point_id",
                         "in": "query",
                         "required": false,
-                        "description": "Filter routes by Pickup Point ID (e.g. 1, 2, 4). Alias: pickuppointid",
+                        "description": "Filter routes by Pickup Point ID (optional). Alias: pickuppointid",
                         "schema": {
                             "type": "integer",
                             "example": 2
@@ -1110,7 +1120,7 @@
                         "name": "pickup_point_name",
                         "in": "query",
                         "required": false,
-                        "description": "Filter routes by Pickup Point Name (e.g. Kanyakumarii, Demo Location). Case-insensitive search.",
+                        "description": "Filter routes by Pickup Point Name (optional). Case-insensitive search.",
                         "schema": {
                             "type": "string",
                             "example": "Kanyakumarii"
@@ -1191,11 +1201,11 @@
                     {
                         "name": "id",
                         "in": "query",
-                        "required": true,
-                        "description": "Route ID",
+                        "required": false,
+                        "description": "Route ID (optional)",
                         "schema": {
                             "type": "integer",
-                            "example": 3
+                            "example": 2
                         }
                     }
                 ],

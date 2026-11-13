@@ -17,31 +17,38 @@ class Routes extends Base
                 'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
                     [
-                        'name' => 'route_id',
+                        'name' => 'bus_number',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter by Route ID (e.g. 1, 2, 5). Alias: routeid, id',
-                        'schema' => ['type' => 'integer', 'example' => 2]
+                        'description' => 'Bus Number from auth login (e.g. "KL 38 M 0990", "KL 17 Y 8989"). Alias: bus_no, vehicle_no',
+                        'schema' => ['type' => 'string', 'example' => 'KL 38 M 0990']
                     ],
                     [
                         'name' => 'vehicle_id',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter by Vehicle / Bus ID (e.g. 2, 3, 5). Alias: vehicleid, bus_id, busid',
+                        'description' => 'Vehicle / Bus ID (e.g. 2, 5) or Bus Number. Alias: vehicleid, bus_id, busid',
+                        'schema' => ['type' => 'string', 'example' => '2']
+                    ],
+                    [
+                        'name' => 'route_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter by Route ID (optional). Alias: routeid, id',
                         'schema' => ['type' => 'integer', 'example' => 2]
                     ],
                     [
                         'name' => 'pickup_point_id',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter by Pickup Point ID (e.g. 1, 2, 4). Alias: pickuppointid',
+                        'description' => 'Filter by Pickup Point ID (optional). Alias: pickuppointid',
                         'schema' => ['type' => 'integer', 'example' => 2]
                     ],
                     [
                         'name' => 'pickup_point_name',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter routes by Pickup Point Name (e.g. Kanyakumarii, Demo Location). Case-insensitive search.',
+                        'description' => 'Filter routes by Pickup Point Name (optional). Case-insensitive search.',
                         'schema' => ['type' => 'string', 'example' => 'Kanyakumarii']
                     ]
                 ],
@@ -81,8 +88,8 @@ class Routes extends Base
                     [
                         'name' => 'id',
                         'in' => 'query',
-                        'required' => true,
-                        'description' => 'Route ID',
+                        'required' => false,
+                        'description' => 'Route ID (optional)',
                         'schema' => ['type' => 'integer', 'example' => 2]
                     ]
                 ],
@@ -104,7 +111,7 @@ class Routes extends Base
 
     /**
      * GET /api/routes
-     * Query parameters: route_id, vehicle_id, pickup_point_id, pickup_point_name (and aliases)
+     * Query parameters: bus_number, vehicle_id, route_id, pickup_point_id, pickup_point_name (and aliases)
      */
     public function index()
     {
@@ -120,6 +127,23 @@ class Routes extends Base
         }
         if ($vehicle_id === null || $vehicle_id === '') {
             $vehicle_id = $this->input->get('busid');
+        }
+
+        $bus_number = $this->input->get('bus_number');
+        if ($bus_number === null || $bus_number === '') {
+            $bus_number = $this->input->get('bus_no');
+        }
+        if ($bus_number === null || $bus_number === '') {
+            $bus_number = $this->input->get('vehicle_no');
+        }
+        if ($bus_number === null || $bus_number === '') {
+            $bus_number = $this->input->get('vehicleno');
+        }
+
+        // If vehicle_id is provided as a non-numeric string (e.g. "KL 38 M 0990"), treat it as bus_number
+        if (!empty($vehicle_id) && !is_numeric($vehicle_id) && empty($bus_number)) {
+            $bus_number = $vehicle_id;
+            $vehicle_id = null;
         }
 
         $route_id = $this->input->get('route_id');
@@ -143,9 +167,12 @@ class Routes extends Base
             $pickup_point_name = $this->input->get('pickup_point');
         }
 
-        $routes = $this->_get_routes_data($vehicle_id, $route_id, $pickup_point_id, $pickup_point_name);
+        $routes = $this->_get_routes_data($vehicle_id, $route_id, $pickup_point_id, $pickup_point_name, $bus_number);
 
         $filters = [];
+        if (!empty($bus_number)) {
+            $filters[] = 'bus number "' . $bus_number . '"';
+        }
         if (!empty($route_id)) {
             $filters[] = 'route ID ' . $route_id;
         }
@@ -183,14 +210,15 @@ class Routes extends Base
             $bus_id = $this->input->get('vehicle_id');
         }
 
-        if (empty($bus_id) || !is_numeric($bus_id)) {
-            $this->_error('Valid bus_id or vehicle_id is required', 400);
-            return;
+        $bus_number = null;
+        if (!empty($bus_id) && !is_numeric($bus_id)) {
+            $bus_number = $bus_id;
+            $bus_id = null;
         }
 
-        $routes = $this->_get_routes_data($bus_id, null, null, null);
+        $routes = $this->_get_routes_data($bus_id, null, null, null, $bus_number);
 
-        $this->_success('Routes for vehicle/bus ID ' . $bus_id . ' retrieved successfully', $routes);
+        $this->_success('Routes retrieved successfully', $routes);
     }
 
     /**
@@ -208,12 +236,13 @@ class Routes extends Base
             $id = $this->input->get('routeid');
         }
 
-        if (empty($id) || !is_numeric($id)) {
-            $this->_error('Route ID is required', 400);
+        if (empty($id)) {
+            $routes = $this->_get_routes_data(null, null, null, null, null);
+            $this->_success('Routes retrieved successfully', $routes);
             return;
         }
 
-        $routes = $this->_get_routes_data(null, $id, null, null);
+        $routes = $this->_get_routes_data(null, $id, null, null, null);
         if (empty($routes)) {
             $this->_error('Route not found', 404);
             return;
@@ -225,7 +254,7 @@ class Routes extends Base
     /**
      * Query routes with vehicle and pickup points
      */
-    private function _get_routes_data($vehicle_id = null, $route_id = null, $pickup_point_id = null, $pickup_point_name = null)
+    private function _get_routes_data($vehicle_id = null, $route_id = null, $pickup_point_id = null, $pickup_point_name = null, $bus_number = null)
     {
         $this->db->select('
             transport_route.id as route_id,
@@ -237,6 +266,7 @@ class Routes extends Base
             vehicle_routes.vehicle_id as bus_id,
             vehicles.vehicle_no,
             vehicles.vehicle_no as bus_no,
+            vehicles.vehicle_no as bus_number,
             vehicles.vehicle_model,
             vehicles.vehicle_model as bus_model,
             vehicles.registration_number,
@@ -255,8 +285,15 @@ class Routes extends Base
         ->join('drivers as v_drivers', 'v_drivers.id = vehicles.driver_id', 'left')
         ->join('attenders', 'attenders.id = vehicle_routes.attender_id', 'left');
 
-        if (!empty($vehicle_id)) {
-            $this->db->where('vehicle_routes.vehicle_id', $vehicle_id);
+        if (!empty($vehicle_id) && is_numeric($vehicle_id)) {
+            $this->db->where('vehicle_routes.vehicle_id', (int)$vehicle_id);
+        }
+
+        if (!empty($bus_number)) {
+            $clean_bus = preg_replace('/\s+/', '', $bus_number);
+            $escaped_bus = $this->db->escape_str(trim($bus_number));
+            $escaped_clean = $this->db->escape_str($clean_bus);
+            $this->db->where("(vehicles.vehicle_no = '{$escaped_bus}' OR REPLACE(vehicles.vehicle_no, ' ', '') = '{$escaped_clean}' OR vehicles.vehicle_no LIKE '%{$escaped_bus}%')", null, false);
         }
 
         if (!empty($route_id)) {
