@@ -20,29 +20,15 @@ class Routes extends Base
                         'name' => 'bus_id',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter routes by Bus / Vehicle ID (e.g. 5, 3)',
-                        'schema' => ['type' => 'integer', 'example' => 3]
-                    ],
-                    [
-                        'name' => 'busid',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Alias for bus_id',
-                        'schema' => ['type' => 'integer', 'example' => 3]
-                    ],
-                    [
-                        'name' => 'vehicle_id',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Alias for bus_id (Vehicle ID)',
-                        'schema' => ['type' => 'integer', 'example' => 3]
+                        'description' => 'Filter routes by Bus / Vehicle ID (e.g. 5, 3). Also accepts alias vehicle_id or busid',
+                        'schema' => ['type' => 'integer', 'example' => 5]
                     ],
                     [
                         'name' => 'route_id',
                         'in' => 'query',
                         'required' => false,
                         'description' => 'Filter by specific Route ID',
-                        'schema' => ['type' => 'integer', 'example' => 3]
+                        'schema' => ['type' => 'integer', 'example' => 1]
                     ]
                 ],
                 'responses' => [
@@ -98,6 +84,7 @@ class Routes extends Base
     public function __construct()
     {
         parent::__construct();
+        $this->load->model('setting_model');
         $this->load->model('vehroute_model');
     }
 

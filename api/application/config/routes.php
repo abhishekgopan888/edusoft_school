@@ -120,21 +120,21 @@ $route['api/boardingpoint/update_status'] = 'boardingpoint/update_status';
 $route['api/boardingpoint/delete'] = 'boardingpoint/delete';
 
 // Routes API (Get routes corresponding to bus ID)
-$route['routes'] = 'api/routes/index';
-$route['routes/by_bus/(:num)'] = 'api/routes/by_bus/$1';
-$route['routes/details'] = 'api/routes/details';
+$route['routes'] = 'routes/index';
+$route['routes/by_bus/(:num)'] = 'routes/by_bus/$1';
+$route['routes/details'] = 'routes/details';
 
-$route['api/routes'] = 'api/routes/index';
-$route['api/routes/by_bus/(:num)'] = 'api/routes/by_bus/$1';
-$route['api/routes/details'] = 'api/routes/details';
+$route['api/routes'] = 'routes/index';
+$route['api/routes/by_bus/(:num)'] = 'routes/by_bus/$1';
+$route['api/routes/details'] = 'routes/details';
 
-$route['route'] = 'api/routes/index';
-$route['route/by_bus/(:num)'] = 'api/routes/by_bus/$1';
-$route['route/details'] = 'api/routes/details';
+$route['route'] = 'routes/index';
+$route['route/by_bus/(:num)'] = 'routes/by_bus/$1';
+$route['route/details'] = 'routes/details';
 
-$route['api/route'] = 'api/routes/index';
-$route['api/route/by_bus/(:num)'] = 'api/routes/by_bus/$1';
-$route['api/route/details'] = 'api/routes/details';
+$route['api/route'] = 'routes/index';
+$route['api/route/by_bus/(:num)'] = 'routes/by_bus/$1';
+$route['api/route/details'] = 'routes/details';
 
 
 

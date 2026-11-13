@@ -5,9 +5,86 @@ require_once APPPATH . 'controllers/api/Base.php';
 
 class Routes extends Base
 {
+    public $swagger_meta = [
+        'tag' => 'Route Management',
+        'description' => 'Endpoints for managing and retrieving school transport routes, assigned buses (vehicles), and pickup points. Requires X-API-Key or Bearer token.',
+        'methods' => [
+            'index' => [
+                'path' => '/api/routes',
+                'summary' => 'Get routes by bus ID or all routes',
+                'description' => 'Retrieves transport routes with their assigned bus details (bus number, model, driver, attender) and all pickup points. Pass bus_id (or busid / vehicle_id) to filter routes for a specific bus.',
+                'http_method' => 'get',
+                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
+                'parameters' => [
+                    [
+                        'name' => 'bus_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter routes by Bus / Vehicle ID (e.g. 5, 3). Also accepts alias vehicle_id or busid',
+                        'schema' => ['type' => 'integer', 'example' => 5]
+                    ],
+                    [
+                        'name' => 'route_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter by specific Route ID',
+                        'schema' => ['type' => 'integer', 'example' => 1]
+                    ]
+                ],
+                'responses' => [
+                    '200' => ['description' => 'List of routes and assigned pickup points retrieved successfully'],
+                    '401' => ['description' => 'Unauthorized - Invalid or missing authentication token / API key']
+                ]
+            ],
+            'by_bus' => [
+                'path' => '/api/routes/by_bus/{bus_id}',
+                'summary' => 'Get routes by specific bus ID',
+                'description' => 'Retrieves all routes, assigned bus details, driver, attender, and pickup points for a specific bus ID.',
+                'http_method' => 'get',
+                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
+                'parameters' => [
+                    [
+                        'name' => 'bus_id',
+                        'in' => 'path',
+                        'required' => true,
+                        'description' => 'Bus / Vehicle ID (e.g. 3, 5)',
+                        'schema' => ['type' => 'integer', 'example' => 3]
+                    ]
+                ],
+                'responses' => [
+                    '200' => ['description' => 'Routes for the specified bus retrieved successfully'],
+                    '400' => ['description' => 'Invalid or missing bus ID'],
+                    '401' => ['description' => 'Unauthorized']
+                ]
+            ],
+            'details' => [
+                'path' => '/api/routes/details',
+                'summary' => 'Get single route details by route ID',
+                'description' => 'Retrieves full details of a specific route including assigned bus and pickup points by route ID.',
+                'http_method' => 'get',
+                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
+                'parameters' => [
+                    [
+                        'name' => 'id',
+                        'in' => 'query',
+                        'required' => true,
+                        'description' => 'Route ID',
+                        'schema' => ['type' => 'integer', 'example' => 3]
+                    ]
+                ],
+                'responses' => [
+                    '200' => ['description' => 'Route details retrieved successfully'],
+                    '404' => ['description' => 'Route not found'],
+                    '401' => ['description' => 'Unauthorized']
+                ]
+            ]
+        ]
+    ];
+
     public function __construct()
     {
         parent::__construct();
+        $this->load->model('setting_model');
         $this->load->model('vehroute_model');
     }
 

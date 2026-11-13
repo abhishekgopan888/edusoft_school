@@ -48,6 +48,7 @@ class Base extends CI_Controller
         }
 
         $this->_error('Unauthorized - Invalid or missing authentication token / API key', 401);
+        $this->output->_display();
         exit;
     }
 

@@ -11,6 +11,7 @@ class Vehroute_model extends CI_Model
     public function __construct()
     {
         parent::__construct();
+        $this->load->model('setting_model');
         $this->current_session = $this->setting_model->getCurrentSession();
     }
 

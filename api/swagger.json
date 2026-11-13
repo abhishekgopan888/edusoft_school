@@ -1080,30 +1080,10 @@
                         "name": "bus_id",
                         "in": "query",
                         "required": false,
-                        "description": "Filter routes by Bus / Vehicle ID (e.g. 5, 3)",
+                        "description": "Filter routes by Bus / Vehicle ID (e.g. 5, 3). Also accepts alias vehicle_id or busid",
                         "schema": {
                             "type": "integer",
-                            "example": 3
-                        }
-                    },
-                    {
-                        "name": "busid",
-                        "in": "query",
-                        "required": false,
-                        "description": "Alias for bus_id",
-                        "schema": {
-                            "type": "integer",
-                            "example": 3
-                        }
-                    },
-                    {
-                        "name": "vehicle_id",
-                        "in": "query",
-                        "required": false,
-                        "description": "Alias for bus_id (Vehicle ID)",
-                        "schema": {
-                            "type": "integer",
-                            "example": 3
+                            "example": 5
                         }
                     },
                     {
@@ -1113,7 +1093,7 @@
                         "description": "Filter by specific Route ID",
                         "schema": {
                             "type": "integer",
-                            "example": 3
+                            "example": 1
                         }
                     }
                 ],
