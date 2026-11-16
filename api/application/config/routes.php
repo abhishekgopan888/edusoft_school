@@ -143,6 +143,12 @@ $route['trip/end'] = 'trip/end';
 $route['api/trip/end'] = 'trip/end';
 $route['trip/status'] = 'trip/status';
 $route['api/trip/status'] = 'trip/status';
+$route['trip/active'] = 'trip/active';
+$route['api/trip/active'] = 'trip/active';
+$route['trip/timeline'] = 'trip/active';
+$route['api/trip/timeline'] = 'trip/active';
+$route['trip/current'] = 'trip/active';
+$route['api/trip/current'] = 'trip/active';
 
 // Bus Location routes
 $route['bus/location'] = 'bus/location';
