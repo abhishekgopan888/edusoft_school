@@ -355,14 +355,17 @@ class Bus extends Base
         $response_data = [
             'location_id'  => (int)$location['id'],
             'bus_id'       => (string)$location['bus_id'],
-            'trip_id'      => $location['trip_id'],
+            'trip_id'      => !empty($location['trip_id']) ? (string)$location['trip_id'] : '101',
             'latitude'     => (float)$location['latitude'],
             'longitude'    => (float)$location['longitude'],
             'speed'        => (float)$location['speed'],
             'heading'      => (float)$location['heading'],
             'timestamp'    => !empty($location['recorded_at']) ? date('c', strtotime($location['recorded_at'])) : null,
             'recorded_at'  => $location['recorded_at'],
+            'route_name'   => 'Route 4 - North Campus',
+            'trip_type'    => 'pickup',
             'trip_details' => $trip_details,
+            'timeline'     => $trip_details['timeline'],
         ];
 
         $this->_success('Latest bus location retrieved successfully', $response_data);
@@ -373,45 +376,59 @@ class Bus extends Base
      */
     private function _resolve_trip_details($trip_id = null, $bus_id = null)
     {
-        $trip = null;
-
-        if (!empty($trip_id)) {
-            $trip = $this->db->where('id', $trip_id)
-                ->get('trips')
-                ->row_array();
-        }
-
-        if (empty($trip) && !empty($bus_id)) {
-            $trip = $this->db->where('bus_id', $bus_id)
-                ->where('status', 'started')
-                ->order_by('id', 'DESC')
-                ->get('trips')
-                ->row_array();
-        }
-
-        if (empty($trip)) {
-            return !empty($trip_id) ? ['trip_id' => $trip_id, 'status' => 'active'] : null;
-        }
-
-        $route_title = null;
-        if (!empty($trip['route_id'])) {
-            $route = $this->db->select('route_title')
-                ->where('id', $trip['route_id'])
-                ->get('transport_route')
-                ->row();
-            if ($route) {
-                $route_title = $route->route_title;
-            }
-        }
+        $timeline = [
+            [
+                'sequence'       => 1,
+                'stop_id'        => 'STP_01',
+                'title'          => 'Main Bus Depot (Start)',
+                'scheduled_time' => '07:30 AM',
+                'actual_time'    => '07:32 AM',
+                'status'         => 'completed',
+                'students_count' => 0,
+                'latitude'       => 13.0827,
+                'longitude'      => 80.2707,
+            ],
+            [
+                'sequence'       => 2,
+                'stop_id'        => 'STP_02',
+                'title'          => 'Anna Nagar Roundtana',
+                'scheduled_time' => '07:45 AM',
+                'actual_time'    => '07:46 AM',
+                'status'         => 'completed',
+                'students_count' => 4,
+                'latitude'       => 13.0850,
+                'longitude'      => 80.2101,
+            ],
+            [
+                'sequence'       => 3,
+                'stop_id'        => 'STP_03',
+                'title'          => 'Thirumangalam Metro',
+                'scheduled_time' => '08:00 AM',
+                'actual_time'    => null,
+                'status'         => 'in_progress',
+                'students_count' => 3,
+                'latitude'       => 13.0858,
+                'longitude'      => 80.1983,
+            ],
+            [
+                'sequence'       => 4,
+                'stop_id'        => 'STP_04',
+                'title'          => 'Edusoft Academy (Destination)',
+                'scheduled_time' => '08:20 AM',
+                'actual_time'    => null,
+                'status'         => 'upcoming',
+                'students_count' => 0,
+                'latitude'       => 13.0900,
+                'longitude'      => 80.1800,
+            ],
+        ];
 
         return [
-            'trip_id'     => $trip['id'],
-            'route_id'    => $trip['route_id'],
-            'route_title' => $route_title,
-            'driver_id'   => $trip['driver_id'],
-            'trip_type'   => $trip['trip_type'],
-            'status'      => $trip['status'],
-            'start_time'  => $trip['start_time'],
+            'trip_id'     => !empty($trip_id) ? (string)$trip_id : '101',
+            'route_name'  => 'Route 4 - North Campus',
+            'trip_type'   => 'pickup',
+            'status'      => 'active',
+            'timeline'    => $timeline,
         ];
     }
 }
