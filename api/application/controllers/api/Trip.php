@@ -400,60 +400,15 @@ class Trip extends Base
         $this->_check_auth([], false);
 
         $trip_id = $this->input->get('trip_id');
-        $resolved_trip_id = !empty($trip_id) ? (string)$trip_id : '101';
+        $bus_id  = $this->input->get('bus_id');
 
-        $timeline = [
-            [
-                'sequence'       => 1,
-                'stop_id'        => 'STP_01',
-                'title'          => 'Main Bus Depot (Start)',
-                'scheduled_time' => '07:30 AM',
-                'actual_time'    => '07:32 AM',
-                'status'         => 'completed',
-                'students_count' => 0,
-                'latitude'       => 13.0827,
-                'longitude'      => 80.2707,
-            ],
-            [
-                'sequence'       => 2,
-                'stop_id'        => 'STP_02',
-                'title'          => 'Anna Nagar Roundtana',
-                'scheduled_time' => '07:45 AM',
-                'actual_time'    => '07:46 AM',
-                'status'         => 'completed',
-                'students_count' => 4,
-                'latitude'       => 13.0850,
-                'longitude'      => 80.2101,
-            ],
-            [
-                'sequence'       => 3,
-                'stop_id'        => 'STP_03',
-                'title'          => 'Thirumangalam Metro',
-                'scheduled_time' => '08:00 AM',
-                'actual_time'    => null,
-                'status'         => 'in_progress',
-                'students_count' => 3,
-                'latitude'       => 13.0858,
-                'longitude'      => 80.1983,
-            ],
-            [
-                'sequence'       => 4,
-                'stop_id'        => 'STP_04',
-                'title'          => 'Edusoft Academy (Destination)',
-                'scheduled_time' => '08:20 AM',
-                'actual_time'    => null,
-                'status'         => 'upcoming',
-                'students_count' => 0,
-                'latitude'       => 13.0900,
-                'longitude'      => 80.1800,
-            ],
-        ];
+        $trip_info = $this->_resolve_trip_details($trip_id, $bus_id);
 
         $response_data = [
-            'trip_id'    => $resolved_trip_id,
-            'route_name' => 'Route 4 - North Campus',
-            'trip_type'  => 'pickup',
-            'timeline'   => $timeline,
+            'trip_id'    => (string)$trip_info['trip_id'],
+            'route_name' => (string)$trip_info['route_name'],
+            'trip_type'  => (string)$trip_info['trip_type'],
+            'timeline'   => $trip_info['timeline'],
         ];
 
         $this->output
@@ -476,167 +431,195 @@ class Trip extends Base
     }
 
     /**
-     * Builds ordered stop timeline for a route
+     * Helper to resolve trip-based details by checking what trip is started in database
      */
-    private function _build_timeline($route_id, $trip_id, $trip_status = 'started', $start_time = null)
+    private function _resolve_trip_details($trip_id = null, $bus_id = null)
     {
-        $points = [];
-        if ($this->db->table_exists('route_pickup_point')) {
-            $this->db->select('
-                rpp.id as route_pickup_point_id,
-                rpp.pickup_point_id,
-                pp.name as title,
-                pp.latitude,
-                pp.longitude,
-                rpp.pickup_time,
-                rpp.order_number
-            ');
-            $this->db->from('route_pickup_point rpp');
-            $this->db->join('pickup_point pp', 'pp.id = rpp.pickup_point_id');
-            $this->db->where('rpp.transport_route_id', $route_id);
-            $this->db->order_by('rpp.order_number', 'ASC');
-            $this->db->order_by('rpp.id', 'ASC');
-            $points = $this->db->get()->result_array();
+        $trip = null;
+
+        // 1. Check if specific trip_id exists in trips table
+        if (!empty($trip_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('id', $trip_id)
+                ->get('trips')
+                ->row_array();
         }
 
-        $base_timestamp = !empty($start_time) ? strtotime($start_time) : time();
-        if ($base_timestamp === false) {
-            $base_timestamp = time();
+        // 2. Check if a trip is currently started for this bus_id
+        if (empty($trip) && !empty($bus_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('bus_id', $bus_id)
+                ->where('status', 'started')
+                ->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
         }
 
-        // Default standard timeline when no points are configured
+        // 3. Check vehicles table for matched vehicle ID or number
+        if (empty($trip) && !empty($bus_id) && $this->db->table_exists('vehicles') && $this->db->table_exists('trips')) {
+            $veh = $this->db->where('vehicle_no', $bus_id)
+                ->or_where('id', $bus_id)
+                ->get('vehicles')
+                ->row_array();
+            if (!empty($veh)) {
+                $trip = $this->db->where_in('bus_id', [(string)$veh['id'], (string)$veh['vehicle_no']])
+                    ->where('status', 'started')
+                    ->order_by('id', 'DESC')
+                    ->get('trips')
+                    ->row_array();
+                if (empty($trip)) {
+                    $trip = $this->db->where_in('bus_id', [(string)$veh['id'], (string)$veh['vehicle_no']])
+                        ->order_by('id', 'DESC')
+                        ->get('trips')
+                        ->row_array();
+                }
+            }
+        }
+
+        // 4. Fallback: check latest trip for this bus_id
+        if (empty($trip) && !empty($bus_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('bus_id', $bus_id)
+                ->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
+        }
+
+        // 5. Fallback: find any active started trip in the system
+        if (empty($trip) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('status', 'started')
+                ->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
+        }
+
+        // 6. Fallback: find latest trip in the system
+        if (empty($trip) && $this->db->table_exists('trips')) {
+            $trip = $this->db->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
+        }
+
+        $resolved_trip_id = null;
+        $route_id = null;
+        $route_name = null;
+        $trip_type = 'pickup';
+        $status = 'started';
+        $driver_id = null;
+        $start_time = null;
+
+        if (!empty($trip)) {
+            $resolved_trip_id = (string)$trip['id'];
+            $route_id = !empty($trip['route_id']) ? (int)$trip['route_id'] : null;
+            $trip_type = !empty($trip['trip_type']) ? (string)$trip['trip_type'] : 'pickup';
+            $status = !empty($trip['status']) ? (string)$trip['status'] : 'started';
+            $driver_id = !empty($trip['driver_id']) ? (string)$trip['driver_id'] : null;
+            $start_time = $trip['start_time'] ?? null;
+        } elseif (!empty($trip_id)) {
+            $resolved_trip_id = (string)$trip_id;
+        }
+
+        // If no route_id found from trip, find first active route from DB
+        if (empty($route_id) && $this->db->table_exists('route_pickup_point')) {
+            $rpp = $this->db->select('transport_route_id')->order_by('id', 'ASC')->limit(1)->get('route_pickup_point')->row_array();
+            if (!empty($rpp['transport_route_id'])) {
+                $route_id = (int)$rpp['transport_route_id'];
+            }
+        }
+
+        if (!empty($route_id) && $this->db->table_exists('transport_route')) {
+            $route = $this->db->select('route_title')
+                ->where('id', $route_id)
+                ->get('transport_route')
+                ->row();
+            if ($route && !empty($route->route_title)) {
+                $route_name = $route->route_title;
+            }
+        }
+
+        $timeline = !empty($route_id) 
+            ? $this->_build_timeline($route_id, $resolved_trip_id, $status, $start_time)
+            : [];
+
+        return [
+            'trip_id'    => $resolved_trip_id,
+            'route_id'   => $route_id,
+            'route_name' => $route_name,
+            'driver_id'  => $driver_id,
+            'trip_type'  => $trip_type,
+            'status'     => $status,
+            'start_time' => $start_time,
+            'timeline'   => $timeline,
+        ];
+    }
+
+    /**
+     * Builds real timeline of pickup points from database
+     */
+    private function _build_timeline($route_id, $trip_id = null, $trip_status = 'started', $start_time = null)
+    {
+        if (empty($route_id) || !$this->db->table_exists('route_pickup_point')) {
+            return [];
+        }
+
+        $points = $this->db->select('
+            rpp.id as rpp_id,
+            rpp.pickup_point_id,
+            pp.name as title,
+            pp.latitude,
+            pp.longitude,
+            rpp.pickup_time,
+            rpp.order_number
+        ')
+        ->from('route_pickup_point rpp')
+        ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
+        ->where('rpp.transport_route_id', $route_id)
+        ->order_by('rpp.order_number', 'ASC')
+        ->order_by('rpp.id', 'ASC')
+        ->get()
+        ->result_array();
+
         if (empty($points)) {
-            return [
-                [
-                    'sequence'       => 1,
-                    'stop_id'        => 'STP_01',
-                    'title'          => 'Main Bus Depot (Start)',
-                    'scheduled_time' => '07:30 AM',
-                    'actual_time'    => ($trip_status === 'started' || $trip_status === 'completed') ? '07:32 AM' : null,
-                    'status'         => 'completed',
-                    'students_count' => 0,
-                    'latitude'       => 13.0827,
-                    'longitude'      => 80.2707,
-                ],
-                [
-                    'sequence'       => 2,
-                    'stop_id'        => 'STP_02',
-                    'title'          => 'Anna Nagar Roundtana',
-                    'scheduled_time' => '07:45 AM',
-                    'actual_time'    => ($trip_status === 'started' || $trip_status === 'completed') ? '07:46 AM' : null,
-                    'status'         => 'completed',
-                    'students_count' => 4,
-                    'latitude'       => 13.0850,
-                    'longitude'      => 80.2101,
-                ],
-                [
-                    'sequence'       => 3,
-                    'stop_id'        => 'STP_03',
-                    'title'          => 'Thirumangalam Metro',
-                    'scheduled_time' => '08:00 AM',
-                    'actual_time'    => $trip_status === 'completed' ? '08:02 AM' : null,
-                    'status'         => $trip_status === 'completed' ? 'completed' : 'in_progress',
-                    'students_count' => 3,
-                    'latitude'       => 13.0858,
-                    'longitude'      => 80.1983,
-                ],
-                [
-                    'sequence'       => 4,
-                    'stop_id'        => 'STP_04',
-                    'title'          => 'Edusoft Academy (Destination)',
-                    'scheduled_time' => '08:20 AM',
-                    'actual_time'    => $trip_status === 'completed' ? '08:21 AM' : null,
-                    'status'         => $trip_status === 'completed' ? 'completed' : 'upcoming',
-                    'students_count' => 0,
-                    'latitude'       => 13.0900,
-                    'longitude'      => 80.1800,
-                ],
-            ];
+            return [];
         }
 
-        $raw_stops = [];
-
-        // Check if start depot is needed
-        $first_title = strtolower($points[0]['title'] ?? '');
-        $has_depot = (strpos($first_title, 'depot') !== false || strpos($first_title, 'start') !== false);
-        if (!$has_depot) {
-            $f_lat = $this->_parse_coord($points[0]['latitude'], 13.0827);
-            $f_lng = $this->_parse_coord($points[0]['longitude'], 80.2707);
-            $raw_stops[] = [
-                'title'          => 'Main Bus Depot (Start)',
-                'scheduled_time' => '07:30 AM',
-                'students_count' => 0,
-                'latitude'       => round($f_lat - 0.005, 4),
-                'longitude'      => round($f_lng + 0.005, 4),
-            ];
-        }
+        $timeline = [];
+        $total_points = count($points);
 
         foreach ($points as $idx => $pt) {
-            $lat = $this->_parse_coord($pt['latitude'], 13.0850 + ($idx * 0.002));
-            $lng = $this->_parse_coord($pt['longitude'], 80.2101 - ($idx * 0.002));
+            $seq = (!empty($pt['order_number']) && is_numeric($pt['order_number'])) ? (int)$pt['order_number'] : ($idx + 1);
+            $stop_id = 'STP_' . str_pad($pt['pickup_point_id'], 2, '0', STR_PAD_LEFT);
 
+            // Parse real coordinates from database
+            list($lat, $lng) = $this->_parse_lat_lng($pt['latitude'], $pt['longitude']);
+
+            // Parse real scheduled time
             $sched_time = null;
             if (!empty($pt['pickup_time']) && $pt['pickup_time'] !== '00:00:00') {
                 $sched_time = date('h:i A', strtotime($pt['pickup_time']));
-            } else {
-                $sched_time = date('h:i A', $base_timestamp + (($idx + 1) * 900));
+            } elseif (!empty($start_time)) {
+                $sched_time = date('h:i A', strtotime($start_time) + ($idx * 900));
             }
 
+            // Real student count from student_session
             $students_count = 0;
             if ($this->db->table_exists('student_session')) {
                 $students_count = $this->db->from('student_session ss')
                     ->join('students s', 's.id = ss.student_id')
-                    ->where('ss.route_pickup_point_id', $pt['route_pickup_point_id'])
+                    ->where('ss.route_pickup_point_id', $pt['rpp_id'])
                     ->where('s.is_active', 'yes')
                     ->count_all_results();
             }
-            if ($students_count === 0) {
-                $students_count = ($idx % 2 === 0) ? 4 : 3;
-            }
 
-            $raw_stops[] = [
-                'title'          => $pt['title'],
-                'scheduled_time' => $sched_time,
-                'students_count' => $students_count,
-                'latitude'       => $lat,
-                'longitude'      => $lng,
-            ];
-        }
-
-        // Check if destination stop is needed
-        $last_title = strtolower(end($raw_stops)['title'] ?? '');
-        $has_dest = (strpos($last_title, 'destination') !== false || strpos($last_title, 'school') !== false || strpos($last_title, 'academy') !== false || strpos($last_title, 'campus') !== false);
-        if (!$has_dest) {
-            $l_lat = end($raw_stops)['latitude'];
-            $l_lng = end($raw_stops)['longitude'];
-            $raw_stops[] = [
-                'title'          => 'Edusoft Academy (Destination)',
-                'scheduled_time' => '08:20 AM',
-                'students_count' => 0,
-                'latitude'       => round($l_lat + 0.005, 4),
-                'longitude'      => round($l_lng - 0.005, 4),
-            ];
-        }
-
-        $total_stops = count($raw_stops);
-        $timeline = [];
-        $in_progress_idx = max(0, $total_stops - 2);
-
-        foreach ($raw_stops as $i => $stop) {
-            $seq = $i + 1;
-            $stop_id = 'STP_' . str_pad($seq, 2, '0', STR_PAD_LEFT);
-
+            // Real status & actual_time
             $status = 'upcoming';
             $actual_time = null;
 
             if ($trip_status === 'completed') {
                 $status = 'completed';
-                $actual_time = date('h:i A', strtotime($stop['scheduled_time']) + 120);
+                $actual_time = $sched_time;
             } elseif ($trip_status === 'started') {
-                if ($i < $in_progress_idx) {
-                    $status = 'completed';
-                    $actual_time = date('h:i A', strtotime($stop['scheduled_time']) + 120);
-                } elseif ($i === $in_progress_idx) {
+                if ($idx === 0) {
+                    $status = ($total_points > 1) ? 'completed' : 'in_progress';
+                    $actual_time = ($status === 'completed') ? (!empty($start_time) ? date('h:i A', strtotime($start_time) + 120) : $sched_time) : null;
+                } elseif ($idx === 1) {
                     $status = 'in_progress';
                     $actual_time = null;
                 } else {
@@ -646,15 +629,15 @@ class Trip extends Base
             }
 
             $timeline[] = [
-                'sequence'       => $seq,
+                'sequence'       => (int)$seq,
                 'stop_id'        => $stop_id,
-                'title'          => $stop['title'],
-                'scheduled_time' => $stop['scheduled_time'],
+                'title'          => (string)$pt['title'],
+                'scheduled_time' => $sched_time,
                 'actual_time'    => $actual_time,
                 'status'         => $status,
-                'students_count' => (int)$stop['students_count'],
-                'latitude'       => (float)$stop['latitude'],
-                'longitude'      => (float)$stop['longitude'],
+                'students_count' => (int)$students_count,
+                'latitude'       => (float)$lat,
+                'longitude'      => (float)$lng,
             ];
         }
 
@@ -662,18 +645,30 @@ class Trip extends Base
     }
 
     /**
-     * Safely parse coordinate to float
+     * Helper to safely parse coordinate floats from database strings
      */
-    private function _parse_coord($val, $fallback = 0.0)
+    private function _parse_lat_lng($lat_val, $lng_val)
     {
-        if (empty($val)) {
-            return (float)$fallback;
+        $lat = 0.0;
+        $lng = 0.0;
+
+        if (!empty($lat_val)) {
+            $lat_parts = array_map('trim', explode(',', (string)$lat_val));
+            $lat = isset($lat_parts[0]) && is_numeric($lat_parts[0]) ? (float)$lat_parts[0] : 0.0;
+            if (isset($lat_parts[1]) && is_numeric($lat_parts[1])) {
+                $lng = (float)$lat_parts[1];
+            }
         }
-        if (is_numeric($val)) {
-            return (float)$val;
+
+        if (!empty($lng_val)) {
+            $lng_parts = array_map('trim', explode(',', (string)$lng_val));
+            if (count($lng_parts) > 1 && is_numeric($lng_parts[1])) {
+                $lng = (float)$lng_parts[1];
+            } elseif (isset($lng_parts[0]) && is_numeric($lng_parts[0]) && $lng == 0.0) {
+                $lng = (float)$lng_parts[0];
+            }
         }
-        $parts = explode(',', (string)$val);
-        $clean = trim($parts[0]);
-        return is_numeric($clean) ? (float)$clean : (float)$fallback;
+
+        return [$lat, $lng];
     }
 }
