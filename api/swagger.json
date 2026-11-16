@@ -393,8 +393,8 @@
         },
         "/bus/location": {
             "post": {
-                "summary": "Record live bus location and GPS telemetry",
-                "description": "Receives live GPS coordinates (latitude, longitude), speed, heading, and timestamp for a bus during an active trip. Includes trip-based details in the response.",
+                "summary": "Record live bus location and GPS telemetry (supports list of objects)",
+                "description": "Receives live GPS coordinates (latitude, longitude), speed, heading, and timestamp for a bus during an active trip. Accepts a list of objects for batch telemetry or a single object. Includes trip-based details in the response.",
                 "tags": [
                     "Bus Live Location"
                 ],
@@ -403,60 +403,84 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "object",
-                                "required": [
-                                    "bus_id",
-                                    "latitude",
-                                    "longitude"
-                                ],
-                                "properties": {
-                                    "bus_id": {
-                                        "type": "string",
-                                        "example": "BUS_08",
-                                        "description": "Bus identifier, vehicle ID, or registration number"
-                                    },
-                                    "trip_id": {
-                                        "type": "string",
-                                        "example": "TRIP_20261112_01",
-                                        "description": "Associated Trip ID"
-                                    },
-                                    "latitude": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 12.971598,
-                                        "description": "Current GPS Latitude"
-                                    },
-                                    "longitude": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 77.594562,
-                                        "description": "Current GPS Longitude"
-                                    },
-                                    "speed": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 34.2,
-                                        "description": "Speed in km/h (helps parents know if bus is moving)"
-                                    },
-                                    "heading": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 182.0,
-                                        "description": "Direction in degrees (0-360) so the icon rotates on the map"
-                                    },
-                                    "timestamp": {
-                                        "type": "string",
-                                        "example": "2026-11-12T07:15:23Z",
-                                        "description": "ISO 8601 GPS timestamp"
+                                "type": "array",
+                                "description": "List of GPS location telemetry objects for the bus (supports list of objects or single object)",
+                                "items": {
+                                    "type": "object",
+                                    "required": [
+                                        "bus_id",
+                                        "latitude",
+                                        "longitude"
+                                    ],
+                                    "properties": {
+                                        "bus_id": {
+                                            "type": "string",
+                                            "example": "BUS_08",
+                                            "description": "Bus identifier, vehicle ID, or registration number"
+                                        },
+                                        "trip_id": {
+                                            "type": "string",
+                                            "example": "TRIP_20261112_01",
+                                            "description": "Associated Trip ID"
+                                        },
+                                        "latitude": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 12.971598,
+                                            "description": "Current GPS Latitude"
+                                        },
+                                        "longitude": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 77.594562,
+                                            "description": "Current GPS Longitude"
+                                        },
+                                        "speed": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 34.2,
+                                            "description": "Speed in km/h (helps parents know if bus is moving)"
+                                        },
+                                        "heading": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 182.0,
+                                            "description": "Direction in degrees (0-360) so the icon rotates on the map"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "example": "2026-11-12T07:15:23Z",
+                                            "description": "ISO 8601 GPS timestamp"
+                                        }
                                     }
                                 }
-                            }
+                            },
+                            "example": [
+                                {
+                                    "bus_id": "BUS_08",
+                                    "trip_id": "TRIP_20261112_01",
+                                    "latitude": 12.971598,
+                                    "longitude": 77.594562,
+                                    "speed": 34.2,
+                                    "heading": 182.0,
+                                    "timestamp": "2026-11-12T07:15:23Z"
+                                },
+                                {
+                                    "bus_id": "BUS_08",
+                                    "trip_id": "TRIP_20261112_01",
+                                    "latitude": 12.972100,
+                                    "longitude": 77.595120,
+                                    "speed": 36.5,
+                                    "heading": 185.0,
+                                    "timestamp": "2026-11-12T07:15:28Z"
+                                }
+                            ]
                         }
                     }
                 },
                 "responses": {
                     "201": {
-                        "description": "Bus location recorded successfully with trip details"
+                        "description": "Bus location(s) recorded successfully with trip details"
                     },
                     "400": {
                         "description": "Validation error - bus_id, latitude, and longitude are required"
