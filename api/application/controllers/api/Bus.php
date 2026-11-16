@@ -286,7 +286,14 @@ class Bus extends Base
         }
 
         // Fetch trip details based on trip_id or bus_id
-        $trip_details = $this->_resolve_trip_details($last_trip_id, $last_bus_id);
+        $trip_info = $this->_resolve_trip_details($last_trip_id, $last_bus_id);
+
+        $trip_details = [
+            'trip_id'    => (string)$trip_info['trip_id'],
+            'route_name' => (string)$trip_info['route_name'],
+            'trip_type'  => (string)$trip_info['trip_type'],
+            'status'     => (string)$trip_info['status'],
+        ];
 
         if ($last_item_info) {
             $last_item_info['location_id'] = (int)$inserted_id;
@@ -296,9 +303,12 @@ class Bus extends Base
         $response_data = [
             'recorded_count'  => $recorded_count,
             'bus_id'          => $last_bus_id,
-            'trip_id'         => !empty($last_trip_id) ? (string)$last_trip_id : ($trip_details['trip_id'] ?? null),
+            'trip_id'         => (string)$trip_info['trip_id'],
+            'route_name'      => (string)$trip_info['route_name'],
+            'trip_type'       => (string)$trip_info['trip_type'],
             'latest_location' => $last_item_info,
             'trip_details'    => $trip_details,
+            'timeline'        => $trip_info['timeline'],
             'locations'       => $batch_data,
         ];
 
@@ -350,32 +360,86 @@ class Bus extends Base
             return;
         }
 
-        $trip_details = $this->_resolve_trip_details($location['trip_id'], $location['bus_id']);
+        $trip_info = $this->_resolve_trip_details($location['trip_id'], $location['bus_id']);
 
         $response_data = [
             'location_id'  => (int)$location['id'],
             'bus_id'       => (string)$location['bus_id'],
-            'trip_id'      => !empty($location['trip_id']) ? (string)$location['trip_id'] : '101',
+            'trip_id'      => (string)$trip_info['trip_id'],
+            'route_name'   => (string)$trip_info['route_name'],
+            'trip_type'    => (string)$trip_info['trip_type'],
             'latitude'     => (float)$location['latitude'],
             'longitude'    => (float)$location['longitude'],
             'speed'        => (float)$location['speed'],
             'heading'      => (float)$location['heading'],
             'timestamp'    => !empty($location['recorded_at']) ? date('c', strtotime($location['recorded_at'])) : null,
             'recorded_at'  => $location['recorded_at'],
-            'route_name'   => 'Route 4 - North Campus',
-            'trip_type'    => 'pickup',
-            'trip_details' => $trip_details,
-            'timeline'     => $trip_details['timeline'],
+            'trip_details' => [
+                'trip_id'    => (string)$trip_info['trip_id'],
+                'route_name' => (string)$trip_info['route_name'],
+                'trip_type'  => (string)$trip_info['trip_type'],
+                'status'     => (string)$trip_info['status'],
+            ],
+            'timeline'     => $trip_info['timeline'],
         ];
 
         $this->_success('Latest bus location retrieved successfully', $response_data);
     }
 
     /**
-     * Helper to resolve trip-based details from trips and transport_route tables
+     * Helper to resolve trip-based details by checking what trip is started in database
      */
     private function _resolve_trip_details($trip_id = null, $bus_id = null)
     {
+        $trip = null;
+
+        // 1. Check if specific trip_id exists in trips table
+        if (!empty($trip_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('id', $trip_id)
+                ->get('trips')
+                ->row_array();
+        }
+
+        // 2. Check if a trip is currently started for this bus_id
+        if (empty($trip) && !empty($bus_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('bus_id', $bus_id)
+                ->where('status', 'started')
+                ->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
+        }
+
+        // 3. Fallback: check latest trip for this bus_id
+        if (empty($trip) && !empty($bus_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where('bus_id', $bus_id)
+                ->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
+        }
+
+        $resolved_trip_id = '101';
+        $route_name = 'Route 4 - North Campus';
+        $trip_type = 'pickup';
+        $status = 'started';
+
+        if (!empty($trip)) {
+            $resolved_trip_id = (string)$trip['id'];
+            $trip_type = !empty($trip['trip_type']) ? (string)$trip['trip_type'] : 'pickup';
+            $status = !empty($trip['status']) ? (string)$trip['status'] : 'started';
+
+            if (!empty($trip['route_id']) && $this->db->table_exists('transport_route')) {
+                $route = $this->db->select('route_title')
+                    ->where('id', $trip['route_id'])
+                    ->get('transport_route')
+                    ->row();
+                if ($route && !empty($route->route_title)) {
+                    $route_name = $route->route_title;
+                }
+            }
+        } elseif (!empty($trip_id)) {
+            $resolved_trip_id = (string)$trip_id;
+        }
+
         $timeline = [
             [
                 'sequence'       => 1,
@@ -424,11 +488,11 @@ class Bus extends Base
         ];
 
         return [
-            'trip_id'     => !empty($trip_id) ? (string)$trip_id : '101',
-            'route_name'  => 'Route 4 - North Campus',
-            'trip_type'   => 'pickup',
-            'status'      => 'active',
-            'timeline'    => $timeline,
+            'trip_id'    => $resolved_trip_id,
+            'route_name' => $route_name,
+            'trip_type'  => $trip_type,
+            'status'     => $status,
+            'timeline'   => $timeline,
         ];
     }
 }
