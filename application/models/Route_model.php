@@ -102,29 +102,93 @@ class Route_model extends MY_Model
 
     public function listroute($id = null)
     {
-        $this->db->select('transport_route.*, GROUP_CONCAT(DISTINCT vehicles.vehicle_no SEPARATOR ", ") as vehicles, GROUP_CONCAT(DISTINCT pickup_point.name SEPARATOR ", ") as pickup_point_names, pp_start.name as start_point_name, pp_drop.name as drop_point_name')
+        $has_pickup_col = $this->db->field_exists('pickup_point_id', 'transport_route');
+        $has_drop_col   = $this->db->field_exists('drop_point_id', 'transport_route');
+
+        $select = 'transport_route.*, GROUP_CONCAT(DISTINCT vehicles.vehicle_no SEPARATOR ", ") as vehicles, GROUP_CONCAT(DISTINCT pickup_point.name SEPARATOR ", ") as pickup_point_names';
+
+        if ($has_pickup_col) {
+            $select .= ', pp_start.name as start_point_name';
+        }
+        if ($has_drop_col) {
+            $select .= ', pp_drop.name as drop_point_name';
+        }
+
+        $this->db->select($select)
                  ->from('transport_route')
                  ->join('vehicle_routes', 'vehicle_routes.route_id = transport_route.id', 'left')
                  ->join('vehicles', 'vehicles.id = vehicle_routes.vehicle_id', 'left')
                  ->join('route_pickup_point', 'route_pickup_point.transport_route_id = transport_route.id', 'left')
-                 ->join('pickup_point', 'pickup_point.id = route_pickup_point.pickup_point_id', 'left')
-                 ->join('pickup_point as pp_start', 'pp_start.id = transport_route.pickup_point_id', 'left')
-                 ->join('pickup_point as pp_drop', 'pp_drop.id = transport_route.drop_point_id', 'left');
+                 ->join('pickup_point', 'pickup_point.id = route_pickup_point.pickup_point_id', 'left');
+
+        if ($has_pickup_col) {
+            $this->db->join('pickup_point as pp_start', 'pp_start.id = transport_route.pickup_point_id', 'left');
+        }
+        if ($has_drop_col) {
+            $this->db->join('pickup_point as pp_drop', 'pp_drop.id = transport_route.drop_point_id', 'left');
+        }
+
         if ($id != null) {
             $this->db->where('transport_route.id', $id);
             $this->db->group_by('transport_route.id');
 
             $listtransport = $this->db->get();
-            return $listtransport->row_array();
+            $result = $listtransport->row_array();
+            if ($result) {
+                $this->_populate_route_endpoints($result);
+            }
+            return $result;
 
         } else {
             $this->db->group_by('transport_route.id');
             $this->db->order_by('transport_route.id', 'desc');
 
             $listtransport = $this->db->get();
-            return $listtransport->result_array();
+            $results = $listtransport->result_array();
+            if (!empty($results)) {
+                foreach ($results as &$r) {
+                    $this->_populate_route_endpoints($r);
+                }
+            }
+            return $results;
         }
 
+    }
+
+    private function _populate_route_endpoints(&$route)
+    {
+        if (empty($route['id'])) {
+            return;
+        }
+
+        // If start or drop point name is not already resolved via JOIN, fetch from route_pickup_point sequence
+        if (empty($route['start_point_name']) || empty($route['drop_point_name'])) {
+            $stops = $this->db->select('pp.name, rpp.point_type, rpp.order_number')
+                ->from('route_pickup_point rpp')
+                ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
+                ->where('rpp.transport_route_id', $route['id'])
+                ->order_by('rpp.order_number', 'ASC')
+                ->order_by('rpp.id', 'ASC')
+                ->get()
+                ->result_array();
+
+            if (!empty($stops)) {
+                $total = count($stops);
+                if (empty($route['start_point_name'])) {
+                    $route['start_point_name'] = $stops[0]['name'];
+                }
+                if (empty($route['drop_point_name']) && $total > 1) {
+                    $route['drop_point_name'] = $stops[$total - 1]['name'];
+                }
+            }
+        }
+
+        if (empty($route['start_point_name'])) {
+            $route['start_point_name'] = !empty($route['pickup_point_names']) ? explode(',', $route['pickup_point_names'])[0] : '';
+        }
+        if (empty($route['drop_point_name'])) {
+            $route['drop_point_name'] = '';
+        }
     }
 
     public function listpickup_point()
