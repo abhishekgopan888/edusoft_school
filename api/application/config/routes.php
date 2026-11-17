@@ -121,18 +121,22 @@ $route['api/boardingpoint/delete'] = 'boardingpoint/delete';
 
 // Routes API (Get routes corresponding to bus ID)
 $route['routes'] = 'routes/index';
+$route['routes/timeline'] = 'routes/timeline';
 $route['routes/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['routes/details'] = 'routes/details';
 
 $route['api/routes'] = 'routes/index';
+$route['api/routes/timeline'] = 'routes/timeline';
 $route['api/routes/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['api/routes/details'] = 'routes/details';
 
 $route['route'] = 'routes/index';
+$route['route/timeline'] = 'routes/timeline';
 $route['route/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['route/details'] = 'routes/details';
 
 $route['api/route'] = 'routes/index';
+$route['api/route/timeline'] = 'routes/timeline';
 $route['api/route/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['api/route/details'] = 'routes/details';
 

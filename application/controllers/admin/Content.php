@@ -59,6 +59,7 @@ class Content extends Admin_Controller
         $data['content_types']          = $content_types;
         $data['superadmin_restriction'] = $this->customlib->superadmin_visible();
         $data['branch_url'] = $this->customlib->getBaseUrl();
+        $data['filetype']   = $this->filetype_model->get();
         $this->load->view('layout/header');
         $this->load->view('admin/content/upload', $data);
         $this->load->view('layout/footer');
@@ -415,7 +416,7 @@ class Content extends Admin_Controller
         $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
         if (!in_array($ext, $allowed_extension)) {
-            $this->form_validation->set_message('handle_upload_file', $this->lang->line('file_type_not_allowed'));
+            $this->form_validation->set_message('handle_upload_file', $this->lang->line('file_type_not_allowed') . ' (' . $this->lang->line('allowed_extension') . ': ' . strtoupper(implode(', ', array_unique($allowed_extension))) . ')');
             return false;
         }
 

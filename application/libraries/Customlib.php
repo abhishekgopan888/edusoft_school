@@ -46,21 +46,20 @@ class Customlib
 
     public function getFolderPath()
     {
-
         $student = $this->CI->session->userdata('student');
-        $admin       = $this->CI->session->userdata('admin');
+        $admin   = $this->CI->session->userdata('admin');
 
-        if ($admin) {
+        $folder_path = null;
+        if ($admin && isset($admin['db_array']['folder_path'])) {
             $folder_path = $admin['db_array']['folder_path'];
-        } else if ($this->CI->session->userdata('student')) {
+        } else if ($student && isset($student['db_array']['folder_path'])) {
             $folder_path = $student['db_array']['folder_path'];
         } else {
             $setting_result = $this->CI->setting_model->get();
-            // $base_url = $setting_result[0]["folder_path"];
-            $folder_path = $setting_result[0]["folder_path"];
+            $folder_path = isset($setting_result[0]["folder_path"]) ? $setting_result[0]["folder_path"] : null;
         }
 
-        if ($folder_path == "") {
+        if (empty($folder_path) || !is_dir($folder_path) || (isset($_SERVER['HTTP_HOST']) && (in_array($_SERVER['HTTP_HOST'], array('localhost', '127.0.0.1')) || strpos($_SERVER['HTTP_HOST'], '192.168.') === 0 || strpos($_SERVER['HTTP_HOST'], '10.') === 0))) {
             $folder_path = null;
         }
         return $folder_path;

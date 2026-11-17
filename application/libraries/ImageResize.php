@@ -71,7 +71,24 @@ class ImageResize
 
                     $fileName = $this->new_file_name;
                     //upload image path
-                    $upload_image =  $this->CI->customlib->getFolderPath() . $this->dir_path . basename($fileName);
+                    $folder_path = $this->CI->customlib->getFolderPath();
+                    if (!empty($folder_path) && is_dir($folder_path)) {
+                        $base_dir = rtrim($folder_path, '/\\') . DIRECTORY_SEPARATOR;
+                    } else {
+                        $base_dir = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR;
+                    }
+
+                    $target_dir = $base_dir . str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, trim($this->dir_path, '/\\')) . DIRECTORY_SEPARATOR;
+                    $target_thumb_dir = $base_dir . str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, trim($this->thumb_path, '/\\')) . DIRECTORY_SEPARATOR;
+
+                    if (!is_dir($target_dir)) {
+                        @mkdir($target_dir, 0777, true);
+                    }
+                    if (!is_dir($target_thumb_dir)) {
+                        @mkdir($target_thumb_dir, 0777, true);
+                    }
+
+                    $upload_image = $target_dir . basename($fileName);
                     //upload image
                     if (move_uploaded_file($this->curr_tmp_name, $upload_image)) {
                         //thumbnail creation
@@ -110,7 +127,7 @@ class ImageResize
                                     $old_image = $imgcreatefrom($upload_image);
                                     $new_image = imagecreatetruecolor($this->thumb_width, $this->thumb_height);
                                     imagecopyresized($new_image, $old_image, $dest_x, $dest_y, 0, 0, $new_width, $new_height, $original_width, $original_height);
-                                    $imgt($new_image, $this->CI->customlib->getFolderPath() . $this->thumb_path . $thumb_name);
+                                    $imgt($new_image, $target_thumb_dir . $thumb_name);
                                 }
                             }
                             //to create thumbnail of image
@@ -163,13 +180,15 @@ class ImageResize
         $this->new_file_name = $unique_name . $filename;
         $thumb_name  = $unique_name . $this->thumb_marker . $filename;
 
-        $target_dir = rtrim($this->dir_path, '/\\');
         $folder_path = $this->CI->customlib->getFolderPath();
         if (!empty($folder_path) && is_dir($folder_path)) {
-            $target_thumb_dir = rtrim($folder_path . $this->thumb_path, '/\\');
+            $base_dir = rtrim($folder_path, '/\\') . DIRECTORY_SEPARATOR;
         } else {
-            $target_thumb_dir = rtrim($this->thumb_path, '/\\');
+            $base_dir = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR;
         }
+
+        $target_dir = $base_dir . str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, trim($this->dir_path, '/\\')) . DIRECTORY_SEPARATOR;
+        $target_thumb_dir = $base_dir . str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, trim($this->thumb_path, '/\\')) . DIRECTORY_SEPARATOR;
 
         if (!is_dir($target_dir)) {
             @mkdir($target_dir, 0777, true);
@@ -178,8 +197,8 @@ class ImageResize
             @mkdir($target_thumb_dir, 0777, true);
         }
 
-        $dest_file  = $target_dir . '/' . $this->new_file_name;
-        $thumb_file = $target_thumb_dir . '/' . $thumb_name;
+        $dest_file  = $target_dir . $this->new_file_name;
+        $thumb_file = $target_thumb_dir . $thumb_name;
 
         $copied = @copy($image, $dest_file, stream_context_create($contextOptions));
         if (!$copied && function_exists('curl_init')) {

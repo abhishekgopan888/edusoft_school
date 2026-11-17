@@ -252,6 +252,53 @@ class Routes extends Base
     }
 
     /**
+     * GET /api/routes/timeline
+     * Query: route_id (optional), bus_id (optional)
+     * Returns standalone route stop timeline in requested format
+     */
+    public function timeline()
+    {
+        $this->_check_auth([], false);
+
+        $route_id   = $this->input->get('route_id') ?? $this->input->get('routeid') ?? $this->input->get('id');
+        $bus_id     = $this->input->get('bus_id') ?? $this->input->get('vehicle_id');
+
+        // If route_id is missing, try to resolve via bus_id / vehicle_routes
+        if (empty($route_id) && !empty($bus_id) && $this->db->table_exists('vehicle_routes')) {
+            $vr = $this->db->where('vehicle_id', $bus_id)->get('vehicle_routes')->row_array();
+            if (!empty($vr['route_id'])) {
+                $route_id = (int)$vr['route_id'];
+            }
+        }
+        if (empty($route_id) && $this->db->table_exists('transport_route')) {
+            $r = $this->db->select('id')->order_by('id', 'ASC')->limit(1)->get('transport_route')->row_array();
+            if (!empty($r['id'])) {
+                $route_id = (int)$r['id'];
+            }
+        }
+
+        $route_name = '';
+        if (!empty($route_id) && $this->db->table_exists('transport_route')) {
+            $r = $this->db->where('id', $route_id)->get('transport_route')->row_array();
+            if (!empty($r['route_title'])) {
+                $route_name = $r['route_title'];
+            }
+        }
+
+        $route_data = $this->_build_route_timeline($route_id, $bus_id);
+
+        $response_data = [
+            'route_id'       => !empty($route_id) ? (int)$route_id : 0,
+            'route_name'     => (string)$route_name,
+            'next_stop'      => $route_data['next_stop'],
+            'next_stop_name' => $route_data['next_stop_name'],
+            'timeline'       => $route_data['timeline'],
+        ];
+
+        $this->_success('Route timeline retrieved successfully', $response_data);
+    }
+
+    /**
      * Query routes with vehicle and pickup points
      */
     private function _get_routes_data($vehicle_id = null, $route_id = null, $pickup_point_id = null, $pickup_point_name = null, $bus_number = null)
@@ -346,10 +393,243 @@ class Routes extends Base
             $route['pickup_points'] = $pickup_points;
             $route['total_pickup_points'] = count($pickup_points);
 
+            $route_data = $this->_build_route_timeline($r_id, $route['vehicle_id'] ?? null);
+            $route['next_stop'] = $route_data['next_stop'];
+            $route['next_stop_name'] = $route_data['next_stop_name'];
+            $route['timeline'] = $route_data['timeline'];
+
             $result[] = $route;
         }
 
         return $result;
+    }
+
+    /**
+     * Builds standardized timeline of pickup points for a route
+     */
+    private function _build_route_timeline($route_id, $vehicle_id = null)
+    {
+        $empty_result = [
+            'timeline'       => [],
+            'next_stop'      => null,
+            'next_stop_name' => null,
+        ];
+
+        if (empty($route_id) || !$this->db->table_exists('route_pickup_point')) {
+            return $empty_result;
+        }
+
+        $points = $this->db->select('
+            rpp.id as rpp_id,
+            rpp.pickup_point_id,
+            pp.name as title,
+            pp.latitude,
+            pp.longitude,
+            rpp.pickup_time,
+            rpp.order_number
+        ')
+        ->from('route_pickup_point rpp')
+        ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
+        ->where('rpp.transport_route_id', $route_id)
+        ->order_by('rpp.order_number', 'ASC')
+        ->order_by('rpp.id', 'ASC')
+        ->get()
+        ->result_array();
+
+        if (empty($points)) {
+            return $empty_result;
+        }
+
+        // Check if there is an active trip for this route / vehicle
+        $trip = null;
+        $bus_lat = null;
+        $bus_lng = null;
+        if ($this->db->table_exists('trips')) {
+            $this->db->from('trips');
+            $this->db->where('route_id', $route_id);
+            if (!empty($vehicle_id)) {
+                $this->db->where('bus_id', (string)$vehicle_id);
+            }
+            $this->db->order_by('id', 'DESC')->limit(1);
+            $trip = $this->db->get()->row_array();
+        }
+
+        $trip_status = !empty($trip['status']) ? $trip['status'] : null;
+        $start_time = !empty($trip['start_time']) ? $trip['start_time'] : null;
+
+        if ($this->db->table_exists('bus_locations') && !empty($trip)) {
+            $loc = $this->db->from('bus_locations')
+                ->where('trip_id', (string)$trip['id'])
+                ->order_by('id', 'DESC')
+                ->limit(1)
+                ->get()
+                ->row_array();
+            if (!empty($loc)) {
+                $bus_lat = (float)$loc['latitude'];
+                $bus_lng = (float)$loc['longitude'];
+            }
+        }
+
+        $total_points = count($points);
+        $parsed_points = [];
+
+        foreach ($points as $idx => $pt) {
+            // Strictly sequential sequence numbering (1, 2, 3...)
+            $seq = $idx + 1;
+            $stop_id = 'STP_' . str_pad($pt['pickup_point_id'], 2, '0', STR_PAD_LEFT);
+
+            list($lat, $lng) = $this->_parse_lat_lng($pt['latitude'], $pt['longitude']);
+
+            $sched_time = null;
+            if (!empty($pt['pickup_time']) && $pt['pickup_time'] !== '00:00:00') {
+                $sched_time = date('h:i A', strtotime($pt['pickup_time']));
+            } elseif (!empty($start_time)) {
+                $sched_time = date('h:i A', strtotime($start_time) + ($idx * 900));
+            }
+
+            $students_count = 0;
+            if ($this->db->table_exists('student_session')) {
+                $students_count = $this->db->from('student_session ss')
+                    ->join('students s', 's.id = ss.student_id')
+                    ->where('ss.route_pickup_point_id', $pt['rpp_id'])
+                    ->where('s.is_active', 'yes')
+                    ->count_all_results();
+            }
+
+            $parsed_points[] = [
+                'seq'            => (int)$seq,
+                'stop_id'        => $stop_id,
+                'title'          => (string)$pt['title'],
+                'latitude'       => (float)$lat,
+                'longitude'      => (float)$lng,
+                'sched_time'     => $sched_time,
+                'students_count' => (int)$students_count,
+            ];
+        }
+
+        $in_progress_idx = -1;
+        if ($trip_status === 'started' && !empty($bus_lat) && !empty($bus_lng) && $total_points > 1) {
+            $closest_idx = 0;
+            $min_dist = PHP_FLOAT_MAX;
+            foreach ($parsed_points as $i => $p) {
+                if ($p['latitude'] != 0.0 && $p['longitude'] != 0.0) {
+                    $dist = $this->_calculate_distance_km($bus_lat, $bus_lng, $p['latitude'], $p['longitude']);
+                    if ($dist < $min_dist) {
+                        $min_dist = $dist;
+                        $closest_idx = $i;
+                    }
+                }
+            }
+            if ($closest_idx === 0 && $min_dist > 0.3) {
+                $in_progress_idx = 1;
+            } else {
+                $in_progress_idx = $closest_idx;
+            }
+        } elseif ($trip_status === 'started' && $total_points > 1) {
+            $in_progress_idx = 1;
+        }
+
+        $timeline = [];
+        foreach ($parsed_points as $i => $p) {
+            $status = 'upcoming';
+            $actual_time = null;
+
+            if ($trip_status === 'completed') {
+                $status = 'completed';
+                $actual_time = $p['sched_time'];
+            } elseif ($trip_status === 'started') {
+                if ($i < $in_progress_idx) {
+                    $status = 'completed';
+                    $actual_time = !empty($p['sched_time']) 
+                        ? date('h:i A', strtotime($p['sched_time']) + 120) 
+                        : (!empty($start_time) ? date('h:i A', strtotime($start_time) + ($i * 900) + 120) : null);
+                } elseif ($i === $in_progress_idx) {
+                    $status = 'in_progress';
+                    $actual_time = null;
+                } else {
+                    $status = 'upcoming';
+                    $actual_time = null;
+                }
+            }
+
+            $timeline[] = [
+                'sequence'       => (int)$p['seq'],
+                'stop_id'        => $p['stop_id'],
+                'title'          => $p['title'],
+                'latitude'       => (float)$p['latitude'],
+                'longitude'      => (float)$p['longitude'],
+                'status'         => $status,
+                'scheduled_time' => $p['sched_time'],
+                'actual_time'    => $actual_time,
+                'students_count' => (int)$p['students_count'],
+            ];
+        }
+
+        $next_stop = null;
+        foreach ($timeline as $st) {
+            if ($st['status'] === 'in_progress') {
+                $next_stop = $st;
+                break;
+            }
+        }
+        if ($next_stop === null) {
+            foreach ($timeline as $st) {
+                if ($st['status'] === 'upcoming') {
+                    $next_stop = $st;
+                    break;
+                }
+            }
+        }
+        $next_stop_name = !empty($next_stop['title']) ? $next_stop['title'] : null;
+
+        return [
+            'timeline'       => $timeline,
+            'next_stop'      => $next_stop,
+            'next_stop_name' => $next_stop_name,
+        ];
+    }
+
+    /**
+     * Distance between two GPS points in kilometers (Haversine formula)
+     */
+    private function _calculate_distance_km($lat1, $lon1, $lat2, $lon2)
+    {
+        $earth_radius = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earth_radius * $c;
+    }
+
+    /**
+     * Helper to safely parse coordinate floats from database strings
+     */
+    private function _parse_lat_lng($lat_val, $lng_val)
+    {
+        $lat = 0.0;
+        $lng = 0.0;
+
+        if (!empty($lat_val)) {
+            $lat_parts = array_map('trim', explode(',', (string)$lat_val));
+            $lat = isset($lat_parts[0]) && is_numeric($lat_parts[0]) ? (float)$lat_parts[0] : 0.0;
+            if (isset($lat_parts[1]) && is_numeric($lat_parts[1])) {
+                $lng = (float)$lat_parts[1];
+            }
+        }
+
+        if (!empty($lng_val)) {
+            $lng_parts = array_map('trim', explode(',', (string)$lng_val));
+            if (count($lng_parts) > 1 && is_numeric($lng_parts[1])) {
+                $lng = (float)$lng_parts[1];
+            } elseif (isset($lng_parts[0]) && is_numeric($lng_parts[0]) && $lng == 0.0) {
+                $lng = (float)$lng_parts[0];
+            }
+        }
+
+        return [$lat, $lng];
     }
 }
 

@@ -158,6 +158,22 @@ foreach ($content_types as $content_type_key => $content_type_value) {
     </section><!-- /.content -->
 </div><!-- /.content-wrapper -->
 
+<?php
+if (!isset($filetype) || empty($filetype)) {
+    $CI = &get_instance();
+    $filetype = $CI->filetype_model->get();
+}
+$allowed_ext_array = array();
+if (!empty($filetype)) {
+    $raw_exts = (!empty($filetype->image_extension) ? $filetype->image_extension : '') . ',' . (!empty($filetype->file_extension) ? $filetype->file_extension : '');
+    $ext_list = array_filter(array_map('trim', explode(',', strtolower($raw_exts))));
+    $allowed_ext_array = array_values(array_unique($ext_list));
+}
+$allowed_ext_str = !empty($allowed_ext_array) ? implode(', ', array_map('strtoupper', $allowed_ext_array)) : 'PDF, JPG, JPEG, PNG, GIF, DOCX, XLSX, TXT, ZIP';
+$accept_attr = !empty($allowed_ext_array) ? '.' . implode(',.', $allowed_ext_array) : '.pdf,.jpg,.jpeg,.png,.gif,.docx,.xlsx,.txt,.zip';
+$max_file_size_display = (!empty($filetype) && !empty($filetype->file_size)) ? format_file_size($filetype->file_size) : '';
+?>
+
 <div id="addModal" class="modal fade" role="dialog">
     <div class="modal-dialog modal-lg">
         <form id="fileupload" action="<?php echo site_url('admin/content/ajaxupload'); ?>"
@@ -194,8 +210,15 @@ foreach ($content_types as $content_type_key => $content_type_value) {
                                 <label><?php echo $this->lang->line('upload_your_file'); ?></label>
                                 <div class="files">
                                     <input type="file" name="upload[]" class="filestyle form-control" data-height="38"
-                                        id="file">
+                                        id="file" accept="<?php echo $accept_attr; ?>">
                                 </div>
+                                <span class="text-danger" id="error_file"></span>
+                                <p class="text-muted" style="margin-top: 6px; font-size: 11px; line-height: 1.4;">
+                                    <i class="fa fa-info-circle"></i> <strong><?php echo $this->lang->line('allowed_extension'); ?>:</strong> <?php echo $allowed_ext_str; ?>
+                                    <?php if (!empty($max_file_size_display)) { ?>
+                                        <br><strong>Max Size:</strong> <?php echo $max_file_size_display; ?>
+                                    <?php } ?>
+                                </p>
                             </div>
                         </div>
                         <div class="col-xs-12 col-sm-2 col-md-2 col-lg-2">

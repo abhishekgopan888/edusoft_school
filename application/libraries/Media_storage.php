@@ -33,7 +33,7 @@ class Media_storage
 
         // Build a safe absolute upload directory path.
         $base_folder = $this->_CI->customlib->getFolderPath();
-        if (empty($base_folder)) {
+        if (empty($base_folder) || !is_dir($base_folder)) {
             $base_folder = rtrim(FCPATH, '/\\');
         }
 
@@ -156,7 +156,7 @@ class Media_storage
 
                 // Directory path - normalize and build absolute path
                 $base_folder = $this->_CI->customlib->getFolderPath();
-                if (empty($base_folder)) {
+                if (empty($base_folder) || !is_dir($base_folder)) {
                     $base_folder = rtrim(FCPATH, '/\\');
                 }
                 $normalized_upload_path = ltrim($upload_path, ".\/\\");
@@ -314,7 +314,7 @@ class Media_storage
     {
         // Get base folder path
         $base_path = $this->_CI->customlib->getFolderPath();
-        if (empty($base_path)) {
+        if (empty($base_path) || !is_dir($base_path)) {
             $base_path = rtrim(FCPATH, '/\\');
         }
 
@@ -341,7 +341,7 @@ class Media_storage
     public function filedownload($file_name, $download_path = "")
     {
         $base_folder = $this->_CI->customlib->getFolderPath();
-        if (empty($base_folder)) {
+        if (empty($base_folder) || !is_dir($base_folder)) {
             $base_folder = rtrim(FCPATH, '/\\');
         }
 
@@ -408,7 +408,7 @@ class Media_storage
         if (!IsNullOrEmptyString($file_name)) {
 
             $base_folder = $this->_CI->customlib->getFolderPath();
-            if (empty($base_folder)) {
+            if (empty($base_folder) || !is_dir($base_folder)) {
                 $base_folder = rtrim(FCPATH, '/\\');
             }
 
