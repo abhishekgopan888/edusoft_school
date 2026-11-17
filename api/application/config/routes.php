@@ -119,6 +119,13 @@ $route['api/boardingpoint/add'] = 'boardingpoint/add';
 $route['api/boardingpoint/update_status'] = 'boardingpoint/update_status';
 $route['api/boardingpoint/delete'] = 'boardingpoint/delete';
 
+// Pickup Points API (from /admin/pickuppoint)
+$route['pickuppoint'] = 'pickuppoint/index';
+$route['api/pickuppoint'] = 'pickuppoint/index';
+$route['pickuppoints'] = 'pickuppoint/index';
+$route['api/pickuppoints'] = 'pickuppoint/index';
+$route['api/pickuppoint/by_route/(:num)'] = 'pickuppoint/by_route/$1';
+
 // Routes API (Get routes corresponding to bus ID)
 $route['routes'] = 'routes/index';
 $route['routes/timeline'] = 'routes/timeline';

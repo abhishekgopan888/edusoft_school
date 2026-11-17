@@ -13,6 +13,17 @@ class Pickuppoint_model extends CI_Model
 
     }
 
+    public function get($id = null)
+    {
+        $this->db->select('id, name, latitude, longitude, created_at, updated_at')->from('pickup_point');
+        if (!empty($id)) {
+            $this->db->where('id', $id);
+            return $this->db->get()->row_array();
+        }
+        $this->db->order_by('id', 'ASC');
+        return $this->db->get()->result_array();
+    }
+
     public function getPickupPointByRouteID($id)
     {
         $this->db->select('route_pickup_point.*,pickup_point.name as pickup_point,transport_route.route_title')

@@ -292,6 +292,9 @@ class Routes extends Base
             'route_name'     => (string)$route_name,
             'next_stop'      => $route_data['next_stop'],
             'next_stop_name' => $route_data['next_stop_name'],
+            'pickup_point'   => $route_data['pickup_point'],
+            'drop_point'     => $route_data['drop_point'],
+            'between_stops'  => $route_data['between_stops'],
             'timeline'       => $route_data['timeline'],
         ];
 
@@ -394,9 +397,12 @@ class Routes extends Base
             $route['total_pickup_points'] = count($pickup_points);
 
             $route_data = $this->_build_route_timeline($r_id, $route['vehicle_id'] ?? null);
-            $route['next_stop'] = $route_data['next_stop'];
+            $route['next_stop']      = $route_data['next_stop'];
             $route['next_stop_name'] = $route_data['next_stop_name'];
-            $route['timeline'] = $route_data['timeline'];
+            $route['pickup_point']   = $route_data['pickup_point'];
+            $route['drop_point']     = $route_data['drop_point'];
+            $route['between_stops']  = $route_data['between_stops'];
+            $route['timeline']       = $route_data['timeline'];
 
             $result[] = $route;
         }
@@ -411,6 +417,9 @@ class Routes extends Base
     {
         $empty_result = [
             'timeline'       => [],
+            'pickup_point'   => null,
+            'drop_point'     => null,
+            'between_stops'  => [],
             'next_stop'      => null,
             'next_stop_name' => null,
         ];
@@ -426,7 +435,8 @@ class Routes extends Base
             pp.latitude,
             pp.longitude,
             rpp.pickup_time,
-            rpp.order_number
+            rpp.order_number,
+            rpp.point_type
         ')
         ->from('route_pickup_point rpp')
         ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
@@ -496,9 +506,14 @@ class Routes extends Base
                     ->count_all_results();
             }
 
+            $point_type = !empty($pt['point_type']) 
+                ? $pt['point_type'] 
+                : (($idx === 0) ? 'pickup' : (($idx === $total_points - 1 && $total_points > 1) ? 'drop' : 'stop'));
+
             $parsed_points[] = [
                 'seq'            => (int)$seq,
                 'stop_id'        => $stop_id,
+                'point_type'     => $point_type,
                 'title'          => (string)$pt['title'],
                 'latitude'       => (float)$lat,
                 'longitude'      => (float)$lng,
@@ -555,6 +570,7 @@ class Routes extends Base
             $timeline[] = [
                 'sequence'       => (int)$p['seq'],
                 'stop_id'        => $p['stop_id'],
+                'point_type'     => $p['point_type'],
                 'title'          => $p['title'],
                 'latitude'       => (float)$p['latitude'],
                 'longitude'      => (float)$p['longitude'],
@@ -563,6 +579,15 @@ class Routes extends Base
                 'actual_time'    => $actual_time,
                 'students_count' => (int)$p['students_count'],
             ];
+        }
+
+        $pickup_point = !empty($timeline[0]) ? $timeline[0] : null;
+        $drop_point   = (count($timeline) > 1) ? $timeline[count($timeline) - 1] : null;
+        $between_stops = [];
+        if (count($timeline) > 2) {
+            for ($bi = 1; $bi < count($timeline) - 1; $bi++) {
+                $between_stops[] = $timeline[$bi];
+            }
         }
 
         $next_stop = null;
@@ -584,6 +609,9 @@ class Routes extends Base
 
         return [
             'timeline'       => $timeline,
+            'pickup_point'   => $pickup_point,
+            'drop_point'     => $drop_point,
+            'between_stops'  => $between_stops,
             'next_stop'      => $next_stop,
             'next_stop_name' => $next_stop_name,
         ];

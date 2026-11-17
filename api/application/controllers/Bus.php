@@ -313,6 +313,9 @@ class Bus extends Base
             'trip_type'       => (string)$trip_info['trip_type'],
             'latest_location' => $last_item_info,
             'trip_details'    => $trip_details,
+            'pickup_point'    => $trip_info['pickup_point'],
+            'drop_point'      => $trip_info['drop_point'],
+            'between_stops'   => $trip_info['between_stops'],
             'timeline'        => $trip_info['timeline'],
             'locations'       => $batch_data,
         ];
@@ -383,25 +386,25 @@ class Bus extends Base
         $trip_info = $this->_resolve_trip_details($location['trip_id'], $location['bus_id'], (float)$location['latitude'], (float)$location['longitude']);
 
         $response_data = [
-            'bus_id'         => (string)$location['bus_id'],
-            'trip_id'        => (string)$trip_info['trip_id'],
-            'route_name'     => (string)$trip_info['route_name'],
-            'trip_type'      => (string)$trip_info['trip_type'],
-            'latitude'       => (float)$location['latitude'],
-            'longitude'      => (float)$location['longitude'],
-            'speed'          => (float)$location['speed'],
-            'heading'        => (float)$location['heading'],
-            'recorded_at'    => $location['recorded_at'],
-            'trip_details'   => [
+            'bus_id'        => (string)$location['bus_id'],
+            'trip_id'       => (string)$trip_info['trip_id'],
+            'route_name'    => (string)$trip_info['route_name'],
+            'trip_type'     => (string)$trip_info['trip_type'],
+            'latitude'      => (float)$location['latitude'],
+            'longitude'     => (float)$location['longitude'],
+            'speed'         => (float)$location['speed'],
+            'heading'       => (float)$location['heading'],
+            'recorded_at'   => $location['recorded_at'],
+            'trip_details'  => [
                 'trip_id'    => (string)$trip_info['trip_id'],
                 'route_name' => (string)$trip_info['route_name'],
                 'trip_type'  => (string)$trip_info['trip_type'],
                 'status'     => (string)$trip_info['status'],
-                'next_stop'  => $trip_info['next_stop_name'],
             ],
-            'next_stop'      => $trip_info['next_stop'],
-            'next_stop_name' => $trip_info['next_stop_name'],
-            'timeline'       => $trip_info['timeline'],
+            'pickup_point'  => $trip_info['pickup_point'],
+            'drop_point'    => $trip_info['drop_point'],
+            'between_stops' => $trip_info['between_stops'],
+            'timeline'      => $trip_info['timeline'],
         ];
 
         $this->_success('Latest bus location retrieved successfully', $response_data);
@@ -518,9 +521,11 @@ class Bus extends Base
             }
         }
 
-        $timeline = !empty($route_id) 
+        $timeline_info = !empty($route_id) 
             ? $this->_build_timeline($route_id, $resolved_trip_id, $status, $start_time, $bus_lat, $bus_lng)
-            : [];
+            : ['timeline' => [], 'pickup_point' => null, 'drop_point' => null, 'between_stops' => []];
+
+        $timeline = $timeline_info['timeline'];
 
         $next_stop = null;
         foreach ($timeline as $st) {
@@ -549,6 +554,9 @@ class Bus extends Base
             'start_time'     => $start_time,
             'next_stop'      => $next_stop,
             'next_stop_name' => $next_stop_name,
+            'pickup_point'   => $timeline_info['pickup_point'],
+            'drop_point'     => $timeline_info['drop_point'],
+            'between_stops'  => $timeline_info['between_stops'],
             'timeline'       => $timeline,
         ];
     }
@@ -558,8 +566,15 @@ class Bus extends Base
      */
     private function _build_timeline($route_id, $trip_id = null, $trip_status = 'started', $start_time = null, $bus_lat = null, $bus_lng = null)
     {
+        $empty_result = [
+            'timeline'      => [],
+            'pickup_point'  => null,
+            'drop_point'    => null,
+            'between_stops' => [],
+        ];
+
         if (empty($route_id) || !$this->db->table_exists('route_pickup_point')) {
-            return [];
+            return $empty_result;
         }
 
         $points = $this->db->select('
@@ -569,7 +584,8 @@ class Bus extends Base
             pp.latitude,
             pp.longitude,
             rpp.pickup_time,
-            rpp.order_number
+            rpp.order_number,
+            rpp.point_type
         ')
         ->from('route_pickup_point rpp')
         ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
@@ -580,7 +596,7 @@ class Bus extends Base
         ->result_array();
 
         if (empty($points)) {
-            return [];
+            return $empty_result;
         }
 
         $total_points = count($points);
@@ -612,9 +628,14 @@ class Bus extends Base
                     ->count_all_results();
             }
 
+            $point_type = !empty($pt['point_type']) 
+                ? $pt['point_type'] 
+                : (($idx === 0) ? 'pickup' : (($idx === $total_points - 1 && $total_points > 1) ? 'drop' : 'stop'));
+
             $parsed_points[] = [
                 'seq'            => (int)$seq,
                 'stop_id'        => $stop_id,
+                'point_type'     => $point_type,
                 'title'          => (string)$pt['title'],
                 'latitude'       => (float)$lat,
                 'longitude'      => (float)$lng,
@@ -675,6 +696,7 @@ class Bus extends Base
             $timeline[] = [
                 'sequence'       => (int)$p['seq'],
                 'stop_id'        => $p['stop_id'],
+                'point_type'     => $p['point_type'],
                 'title'          => $p['title'],
                 'latitude'       => (float)$p['latitude'],
                 'longitude'      => (float)$p['longitude'],
@@ -685,7 +707,21 @@ class Bus extends Base
             ];
         }
 
-        return $timeline;
+        $pickup_point = !empty($timeline[0]) ? $timeline[0] : null;
+        $drop_point   = (count($timeline) > 1) ? $timeline[count($timeline) - 1] : null;
+        $between_stops = [];
+        if (count($timeline) > 2) {
+            for ($bi = 1; $bi < count($timeline) - 1; $bi++) {
+                $between_stops[] = $timeline[$bi];
+            }
+        }
+
+        return [
+            'timeline'      => $timeline,
+            'pickup_point'  => $pickup_point,
+            'drop_point'    => $drop_point,
+            'between_stops' => $between_stops,
+        ];
     }
 
     /**

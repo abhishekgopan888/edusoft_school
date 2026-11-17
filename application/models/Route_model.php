@@ -102,12 +102,14 @@ class Route_model extends MY_Model
 
     public function listroute($id = null)
     {
-        $this->db->select('transport_route.*, GROUP_CONCAT(DISTINCT vehicles.vehicle_no SEPARATOR ", ") as vehicles, GROUP_CONCAT(DISTINCT pickup_point.name SEPARATOR ", ") as pickup_point_names')
+        $this->db->select('transport_route.*, GROUP_CONCAT(DISTINCT vehicles.vehicle_no SEPARATOR ", ") as vehicles, GROUP_CONCAT(DISTINCT pickup_point.name SEPARATOR ", ") as pickup_point_names, pp_start.name as start_point_name, pp_drop.name as drop_point_name')
                  ->from('transport_route')
                  ->join('vehicle_routes', 'vehicle_routes.route_id = transport_route.id', 'left')
                  ->join('vehicles', 'vehicles.id = vehicle_routes.vehicle_id', 'left')
                  ->join('route_pickup_point', 'route_pickup_point.transport_route_id = transport_route.id', 'left')
-                 ->join('pickup_point', 'pickup_point.id = route_pickup_point.pickup_point_id', 'left');
+                 ->join('pickup_point', 'pickup_point.id = route_pickup_point.pickup_point_id', 'left')
+                 ->join('pickup_point as pp_start', 'pp_start.id = transport_route.pickup_point_id', 'left')
+                 ->join('pickup_point as pp_drop', 'pp_drop.id = transport_route.drop_point_id', 'left');
         if ($id != null) {
             $this->db->where('transport_route.id', $id);
             $this->db->group_by('transport_route.id');

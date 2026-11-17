@@ -233,10 +233,12 @@
         }
     });
 
-    // Open map modal when "+ Add" button is clicked
+    // Open map modal when "Pick on Map" or "+ Add" button is clicked
     $(document).on('click', '.btn-open-pickup-map', function(e) {
         e.preventDefault();
         currentTargetSelect = $(this).closest('.input-group').find('.pickup_point_select');
+        var customTitle = $(this).attr('data-title') || '<?php echo $this->lang->line('add') . ' ' . $this->lang->line('pickup_point'); ?>';
+        $('#add_pickup_modal .modal-title').html('<i class="fa fa-map-marker"></i> ' + customTitle);
         $('#route_pickup_point_name').val('');
         $('#route_modal_lat').val('');
         $('#route_modal_lng').val('');
@@ -319,7 +321,47 @@
         });
     });
 
-    // Add More Pickup Point rows
+    // Add More Between Stops rows
+    $('#btn_add_more_between').on('click', function(e) {
+        e.preventDefault();
+        var seq = $('#between_stops_wrapper .between-stop-row').length + 1;
+        var optionsHtml = '<option value=""><?php echo $this->lang->line('select'); ?></option>';
+        <?php if (!empty($pickup_point_list)) {
+            foreach ($pickup_point_list as $pickup_point) { ?>
+                optionsHtml += '<option value="<?php echo $pickup_point['id']; ?>"><?php echo addslashes($pickup_point['name']); ?></option>';
+        <?php } } ?>
+
+        var rowHtml = '<div class="between-stop-row" style="margin-bottom: 8px;">' +
+            '<div class="input-group">' +
+                '<span class="input-group-addon stop-seq-badge">' + seq + '</span>' +
+                '<select name="between_stops[]" class="form-control pickup_point_select">' + optionsHtml + '</select>' +
+                '<span class="input-group-btn">' +
+                    '<button type="button" class="btn btn-info btn-open-pickup-map" data-title="Add / Pick Intermediate Stop" title="Pick on Map">' +
+                        '<i class="fa fa-map-marker"></i> Map' +
+                    '</button>' +
+                    '<button type="button" class="btn btn-danger btn-remove-between-row" title="<?php echo $this->lang->line('remove'); ?>">' +
+                        '<i class="fa fa-remove"></i>' +
+                    '</button>' +
+                '</span>' +
+            '</div>' +
+        '</div>';
+        $('#between_stops_wrapper').append(rowHtml);
+        updateBetweenStopBadges();
+    });
+
+    $(document).on('click', '.btn-remove-between-row', function(e) {
+        e.preventDefault();
+        $(this).closest('.between-stop-row').remove();
+        updateBetweenStopBadges();
+    });
+
+    function updateBetweenStopBadges() {
+        $('#between_stops_wrapper .between-stop-row').each(function(i) {
+            $(this).find('.stop-seq-badge').text(i + 1);
+        });
+    }
+
+    // Add More Pickup Point rows (legacy fallback)
     $('#btn_add_more_pickup').on('click', function(e) {
         e.preventDefault();
         var firstRow = $('#pickup_point_wrapper .pickup-point-row:first');

@@ -52,36 +52,57 @@ if (isset($error_message)) {
                                     <span class="text-danger"><?php echo form_error('vehicle[]'); ?></span>
                                 </div>
                                 <div class="form-group">
-                                    <label for="pickup_point"><?php echo $this->lang->line('pickup_point'); ?></label>
-                                    <div id="pickup_point_wrapper">
-                                        <div class="pickup-point-row" style="margin-bottom: 8px;">
-                                            <div class="input-group">
-                                                <select name="pickup_point[]" class="form-control pickup_point_select">
-                                                    <option value=""><?php echo $this->lang->line('select'); ?></option>
-                                                    <?php if (!empty($pickup_point_list)) {
-                                                        foreach ($pickup_point_list as $pickup_point) { ?>
-                                                            <option value="<?php echo $pickup_point['id']; ?>" <?php if (set_value('pickup_point[]') == $pickup_point['id']) echo 'selected'; ?>>
-                                                                <?php echo $pickup_point['name']; ?>
-                                                            </option>
-                                                    <?php } } ?>
-                                                </select>
-                                                <span class="input-group-btn">
-                                                    <button type="button" class="btn btn-primary btn-open-pickup-map" title="<?php echo $this->lang->line('add') . ' ' . $this->lang->line('pickup_point'); ?>">
-                                                        <i class="fa fa-plus"></i> <?php echo $this->lang->line('add'); ?>
-                                                    </button>
-                                                    <button type="button" class="btn btn-danger btn-remove-pickup-row" style="display:none;" title="<?php echo $this->lang->line('remove'); ?>">
-                                                        <i class="fa fa-remove"></i>
-                                                    </button>
-                                                </span>
-                                            </div>
-                                        </div>
+                                    <label for="start_pickup_point_id"><i class="fa fa-map-marker text-success"></i> <?php echo $this->lang->line('pickup_point'); ?> (Start Location)</label><small class="req"> *</small>
+                                    <div class="input-group">
+                                        <select id="start_pickup_point_id" name="start_pickup_point_id" class="form-control pickup_point_select">
+                                            <option value=""><?php echo $this->lang->line('select'); ?></option>
+                                            <?php if (!empty($pickup_point_list)) {
+                                                foreach ($pickup_point_list as $pickup_point) { ?>
+                                                    <option value="<?php echo $pickup_point['id']; ?>" <?php if (set_value('start_pickup_point_id') == $pickup_point['id']) echo 'selected'; ?>>
+                                                        <?php echo $pickup_point['name']; ?>
+                                                    </option>
+                                            <?php } } ?>
+                                        </select>
+                                        <span class="input-group-btn">
+                                            <button type="button" class="btn btn-success btn-open-pickup-map" data-title="Add / Pick Pickup Point (Start Location)" title="Pick on Map">
+                                                <i class="fa fa-map-marker"></i> Pick on Map
+                                            </button>
+                                        </span>
+                                    </div>
+                                    <span class="text-danger"><?php echo form_error('start_pickup_point_id'); ?></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label><i class="fa fa-road text-primary"></i> Between Stops (Intermediate Stops)</label>
+                                    <div id="between_stops_wrapper">
+                                        <!-- Dynamic between stop rows -->
                                     </div>
                                     <div style="margin-top: 5px;">
-                                        <button type="button" id="btn_add_more_pickup" class="btn btn-default btn-xs">
-                                            <i class="fa fa-plus"></i> <?php echo $this->lang->line('add_more'); ?>
+                                        <button type="button" id="btn_add_more_between" class="btn btn-default btn-xs">
+                                            <i class="fa fa-plus"></i> Add Between Stop
                                         </button>
                                     </div>
-                                    <span class="text-danger"><?php echo form_error('pickup_point[]'); ?></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="end_drop_point_id"><i class="fa fa-flag-checkered text-danger"></i> Drop Point (Destination / End Location)</label>
+                                    <div class="input-group">
+                                        <select id="end_drop_point_id" name="end_drop_point_id" class="form-control pickup_point_select">
+                                            <option value=""><?php echo $this->lang->line('select'); ?></option>
+                                            <?php if (!empty($pickup_point_list)) {
+                                                foreach ($pickup_point_list as $pickup_point) { ?>
+                                                    <option value="<?php echo $pickup_point['id']; ?>" <?php if (set_value('end_drop_point_id') == $pickup_point['id']) echo 'selected'; ?>>
+                                                        <?php echo $pickup_point['name']; ?>
+                                                    </option>
+                                            <?php } } ?>
+                                        </select>
+                                        <span class="input-group-btn">
+                                            <button type="button" class="btn btn-danger btn-open-pickup-map" data-title="Add / Pick Drop Point (Destination)" title="Pick on Map">
+                                                <i class="fa fa-map-marker"></i> Pick on Map
+                                            </button>
+                                        </span>
+                                    </div>
+                                    <span class="text-danger"><?php echo form_error('end_drop_point_id'); ?></span>
                                 </div>
                             </div>
                             <div class="box-footer">
@@ -114,7 +135,8 @@ if ($this->rbac->hasPrivilege('routes', 'can_add')) {
                                     <thead>
                                         <tr>
                                             <th><?php echo $this->lang->line('route_title'); ?></th>
-                                            <th><?php echo $this->lang->line('pickup_point'); ?></th>
+                                            <th><i class="fa fa-map-marker text-success"></i> Pickup Point (Start)</th>
+                                            <th><i class="fa fa-flag-checkered text-danger"></i> Drop Point (End)</th>
                                             <th><?php echo $this->lang->line('vehicle'); ?></th>
                                             <th class="text-right noExport"><?php echo $this->lang->line('action'); ?></th>
                                         </tr>
@@ -127,10 +149,13 @@ if ($this->rbac->hasPrivilege('routes', 'can_add')) {
 } else {
     $count = 1;
     foreach ($listroute as $data) {
+        $start_display = !empty($data['start_point_name']) ? $data['start_point_name'] : (!empty($data['pickup_point_names']) ? explode(',', $data['pickup_point_names'])[0] : '-');
+        $drop_display  = !empty($data['drop_point_name']) ? $data['drop_point_name'] : '-';
         ?>
                                                 <tr>
                                                     <td class="mailbox-name"> <?php echo $data['route_title'] ?></td>
-                                                    <td class="mailbox-name"> <?php echo !empty($data['pickup_point_names']) ? $data['pickup_point_names'] : ''; ?></td>
+                                                    <td class="mailbox-name"><span class="label label-success"><i class="fa fa-map-marker"></i></span> <?php echo $start_display; ?></td>
+                                                    <td class="mailbox-name"><span class="label label-danger"><i class="fa fa-flag-checkered"></i></span> <?php echo $drop_display; ?></td>
                                                     <td class="mailbox-name"> <?php echo !empty($data['vehicles']) ? $data['vehicles'] : ''; ?></td>
                                                     <td class="mailbox-date pull-right no-print">
                                                         <?php if ($this->rbac->hasPrivilege('routes', 'can_edit')) {?>
