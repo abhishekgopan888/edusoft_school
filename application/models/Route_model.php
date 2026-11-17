@@ -163,7 +163,7 @@ class Route_model extends MY_Model
 
         // If start or drop point name is not already resolved via JOIN, fetch from route_pickup_point sequence
         if (empty($route['start_point_name']) || empty($route['drop_point_name'])) {
-            $stops = $this->db->select('pp.name, rpp.point_type, rpp.order_number')
+            $stops = $this->db->select('pp.name, rpp.order_number')
                 ->from('route_pickup_point rpp')
                 ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
                 ->where('rpp.transport_route_id', $route['id'])

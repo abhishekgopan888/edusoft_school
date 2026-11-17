@@ -428,16 +428,17 @@ class Routes extends Base
             return $empty_result;
         }
 
-        $points = $this->db->select('
+        $has_point_type = $this->db->field_exists('point_type', 'route_pickup_point');
+        $select_fields = '
             rpp.id as rpp_id,
             rpp.pickup_point_id,
             pp.name as title,
             pp.latitude,
             pp.longitude,
             rpp.pickup_time,
-            rpp.order_number,
-            rpp.point_type
-        ')
+            rpp.order_number' . ($has_point_type ? ', rpp.point_type' : '');
+
+        $points = $this->db->select($select_fields)
         ->from('route_pickup_point rpp')
         ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
         ->where('rpp.transport_route_id', $route_id)
