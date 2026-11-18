@@ -80,26 +80,52 @@ class Route extends Admin_Controller
             $resolved_drop_id   = !empty($end_drop_point_id) ? (int)$end_drop_point_id : (!empty($all_stops) && count($all_stops) > 1 ? (int)$all_stops[count($all_stops) - 1]['id'] : null);
 
             $data = array(
-                'route_title'     => $this->input->post('route_title'),
-                'no_of_vehicle'   => $this->input->post('no_of_vehicle'),
-                'pickup_point_id' => $resolved_pickup_id,
-                'drop_point_id'   => $resolved_drop_id,
+                'route_title'   => $this->input->post('route_title'),
+                'no_of_vehicle' => $this->input->post('no_of_vehicle'),
             );
+            if ($this->db->field_exists('pickup_point_id', 'transport_route')) {
+                $data['pickup_point_id'] = $resolved_pickup_id;
+            }
+            if ($this->db->field_exists('drop_point_id', 'transport_route')) {
+                $data['drop_point_id'] = $resolved_drop_id;
+            }
             $insert_id = $this->route_model->add($data);
 
             $vehicle = $this->input->post('vehicle');
+            if (!empty($vehicle) && !empty($insert_id)) {
+                $vehicle_batch_array = array();
+                foreach ((array)$vehicle as $vec_key => $vec_value) {
+                    if (!empty($vec_value)) {
+                        $vehicle_batch_array[] = array(
+                            'route_id'   => $insert_id,
+                            'vehicle_id' => $vec_value,
+                        );
+                    }
+                }
+                if (!empty($vehicle_batch_array)) {
+                    $this->vehroute_model->add($vehicle_batch_array);
+                }
+            }
 
             if (!empty($all_stops) && !empty($insert_id)) {
                 $current_session = $this->setting_model->getCurrentSession();
                 $order_num = 1;
+                $has_order = $this->db->field_exists('order_number', 'route_pickup_point');
+                $has_type  = $this->db->field_exists('point_type', 'route_pickup_point');
+
                 foreach ($all_stops as $stop_item) {
-                    $this->db->insert('route_pickup_point', array(
+                    $insert_stop = array(
                         'transport_route_id' => $insert_id,
                         'pickup_point_id'    => $stop_item['id'],
                         'session_id'         => $current_session,
-                        'order_number'       => $order_num++,
-                        'point_type'         => $stop_item['type'],
-                    ));
+                    );
+                    if ($has_order) {
+                        $insert_stop['order_number'] = $order_num++;
+                    }
+                    if ($has_type) {
+                        $insert_stop['point_type'] = $stop_item['type'];
+                    }
+                    $this->db->insert('route_pickup_point', $insert_stop);
                 }
             }
 
@@ -127,12 +153,22 @@ class Route extends Admin_Controller
         }
         $data['selected_vehicles'] = $selected_vehicles;
 
-        $assigned_stops = $this->db->select('pickup_point_id, point_type, order_number')
-            ->where('transport_route_id', $id)
-            ->order_by('order_number', 'ASC')
-            ->order_by('id', 'ASC')
-            ->get('route_pickup_point')
-            ->result_array();
+        $has_order = $this->db->field_exists('order_number', 'route_pickup_point');
+        $has_type  = $this->db->field_exists('point_type', 'route_pickup_point');
+
+        $select_fields = 'pickup_point_id';
+        if ($has_type) {
+            $select_fields .= ', point_type';
+        }
+        if ($has_order) {
+            $select_fields .= ', order_number';
+        }
+
+        $this->db->select($select_fields)->where('transport_route_id', $id);
+        if ($has_order) {
+            $this->db->order_by('order_number', 'ASC');
+        }
+        $assigned_stops = $this->db->order_by('id', 'ASC')->get('route_pickup_point')->result_array();
 
         $selected_start_pickup = !empty($editroute['pickup_point_id']) ? $editroute['pickup_point_id'] : null;
         $selected_end_drop     = !empty($editroute['drop_point_id']) ? $editroute['drop_point_id'] : null;
@@ -149,7 +185,9 @@ class Route extends Admin_Controller
             }
             foreach ($assigned_stops as $idx => $st) {
                 $selected_pickup_points[] = $st['pickup_point_id'];
-                if ($st['point_type'] === 'stop' || ($idx > 0 && $idx < $total_stops - 1)) {
+                $is_stop = (isset($st['point_type']) && $st['point_type'] === 'stop');
+                $is_mid  = ($total_stops > 2 && $idx > 0 && $idx < $total_stops - 1);
+                if ($is_stop || ($is_mid && !isset($st['point_type']))) {
                     $selected_between_stops[] = $st['pickup_point_id'];
                 }
             }
@@ -204,12 +242,16 @@ class Route extends Admin_Controller
             $resolved_drop_id   = !empty($end_drop_point_id) ? (int)$end_drop_point_id : (!empty($all_stops) && count($all_stops) > 1 ? (int)$all_stops[count($all_stops) - 1]['id'] : null);
 
             $data = array(
-                'id'              => $this->input->post('id'),
-                'route_title'     => $this->input->post('route_title'),
-                'no_of_vehicle'   => $this->input->post('no_of_vehicle'),
-                'pickup_point_id' => $resolved_pickup_id,
-                'drop_point_id'   => $resolved_drop_id,
+                'id'            => $this->input->post('id'),
+                'route_title'   => $this->input->post('route_title'),
+                'no_of_vehicle' => $this->input->post('no_of_vehicle'),
             );
+            if ($this->db->field_exists('pickup_point_id', 'transport_route')) {
+                $data['pickup_point_id'] = $resolved_pickup_id;
+            }
+            if ($this->db->field_exists('drop_point_id', 'transport_route')) {
+                $data['drop_point_id'] = $resolved_drop_id;
+            }
             $this->route_model->add($data);
 
             $vehicle = $this->input->post('vehicle');
@@ -233,14 +275,22 @@ class Route extends Admin_Controller
             if (!empty($all_stops)) {
                 $current_session = $this->setting_model->getCurrentSession();
                 $order_num = 1;
+                $has_order = $this->db->field_exists('order_number', 'route_pickup_point');
+                $has_type  = $this->db->field_exists('point_type', 'route_pickup_point');
+
                 foreach ($all_stops as $stop_item) {
-                    $this->db->insert('route_pickup_point', array(
+                    $insert_stop = array(
                         'transport_route_id' => $id,
                         'pickup_point_id'    => $stop_item['id'],
                         'session_id'         => $current_session,
-                        'order_number'       => $order_num++,
-                        'point_type'         => $stop_item['type'],
-                    ));
+                    );
+                    if ($has_order) {
+                        $insert_stop['order_number'] = $order_num++;
+                    }
+                    if ($has_type) {
+                        $insert_stop['point_type'] = $stop_item['type'];
+                    }
+                    $this->db->insert('route_pickup_point', $insert_stop);
                 }
             }
 

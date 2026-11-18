@@ -161,34 +161,96 @@ class Route_model extends MY_Model
             return;
         }
 
-        // If start or drop point name is not already resolved via JOIN, fetch from route_pickup_point sequence
-        if (empty($route['start_point_name']) || empty($route['drop_point_name'])) {
-            $stops = $this->db->select('pp.name, rpp.order_number')
-                ->from('route_pickup_point rpp')
-                ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
-                ->where('rpp.transport_route_id', $route['id'])
-                ->order_by('rpp.order_number', 'ASC')
-                ->order_by('rpp.id', 'ASC')
-                ->get()
-                ->result_array();
+        $has_order = $this->db->field_exists('order_number', 'route_pickup_point');
+        $has_type  = $this->db->field_exists('point_type', 'route_pickup_point');
 
-            if (!empty($stops)) {
-                $total = count($stops);
-                if (empty($route['start_point_name'])) {
-                    $route['start_point_name'] = $stops[0]['name'];
+        $select = 'pp.name, rpp.pickup_point_id';
+        if ($has_order) {
+            $select .= ', rpp.order_number';
+        }
+        if ($has_type) {
+            $select .= ', rpp.point_type';
+        }
+
+        $this->db->select($select)
+            ->from('route_pickup_point rpp')
+            ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
+            ->where('rpp.transport_route_id', $route['id']);
+
+        if ($has_order) {
+            $this->db->order_by('rpp.order_number', 'ASC');
+        }
+        $stops = $this->db->order_by('rpp.id', 'ASC')->get()->result_array();
+
+        $between_stops = array();
+        $start_name = !empty($route['start_point_name']) ? $route['start_point_name'] : '';
+        $drop_name  = !empty($route['drop_point_name']) ? $route['drop_point_name'] : '';
+
+        if (!empty($stops)) {
+            $total = count($stops);
+
+            if (empty($start_name)) {
+                foreach ($stops as $s) {
+                    if (isset($s['point_type']) && $s['point_type'] === 'pickup') {
+                        $start_name = $s['name'];
+                        break;
+                    }
                 }
-                if (empty($route['drop_point_name']) && $total > 1) {
-                    $route['drop_point_name'] = $stops[$total - 1]['name'];
+                if (empty($start_name)) {
+                    $start_name = $stops[0]['name'];
+                }
+            }
+
+            if (empty($drop_name)) {
+                foreach ($stops as $s) {
+                    if (isset($s['point_type']) && $s['point_type'] === 'drop') {
+                        $drop_name = $s['name'];
+                        break;
+                    }
+                }
+                if (empty($drop_name) && $total > 1) {
+                    $drop_name = $stops[$total - 1]['name'];
+                }
+            }
+
+            // Collect between stops (intermediate stops)
+            foreach ($stops as $idx => $s) {
+                if ($total <= 1) {
+                    continue;
+                }
+                if ($total == 2 && ($idx === 0 || $idx === $total - 1)) {
+                    continue;
+                }
+
+                if (isset($s['point_type']) && $s['point_type'] !== '') {
+                    if ($s['point_type'] === 'stop') {
+                        $between_stops[] = $s['name'];
+                    }
+                } else {
+                    if ($idx > 0 && $idx < $total - 1) {
+                        $between_stops[] = $s['name'];
+                    }
                 }
             }
         }
 
-        if (empty($route['start_point_name'])) {
-            $route['start_point_name'] = !empty($route['pickup_point_names']) ? explode(',', $route['pickup_point_names'])[0] : '';
+        if (empty($start_name) && !empty($route['pickup_point_names'])) {
+            $parts = array_map('trim', explode(',', $route['pickup_point_names']));
+            $start_name = !empty($parts[0]) ? $parts[0] : '';
+            if (empty($drop_name) && count($parts) > 1) {
+                $drop_name = $parts[count($parts) - 1];
+            }
+            if (count($parts) > 2) {
+                for ($i = 1; $i < count($parts) - 1; $i++) {
+                    $between_stops[] = $parts[$i];
+                }
+            }
         }
-        if (empty($route['drop_point_name'])) {
-            $route['drop_point_name'] = '';
-        }
+
+        $route['start_point_name']    = $start_name;
+        $route['drop_point_name']     = $drop_name;
+        $route['between_stops_array'] = $between_stops;
+        $route['between_stops_names'] = implode(', ', $between_stops);
     }
 
     public function listpickup_point()

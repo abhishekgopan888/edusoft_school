@@ -165,6 +165,7 @@ if ($this->rbac->hasPrivilege('routes', 'can_add') || $this->rbac->hasPrivilege(
                                         <tr>
                                             <th><?php echo $this->lang->line('route_title'); ?></th>
                                             <th><i class="fa fa-map-marker text-success"></i> Pickup Point (Start)</th>
+                                            <th><i class="fa fa-road text-primary"></i> Between Stops</th>
                                             <th><i class="fa fa-flag-checkered text-danger"></i> Drop Point (End)</th>
                                             <th><?php echo $this->lang->line('vehicle'); ?></th>
                                             <th class="text-right noExport"><?php echo $this->lang->line('action'); ?></th>
@@ -183,9 +184,40 @@ if ($this->rbac->hasPrivilege('routes', 'can_add') || $this->rbac->hasPrivilege(
         ?>
                                                 <tr>
                                                     <td class="mailbox-name"> <?php echo $data['route_title'] ?></td>
-                                                    <td class="mailbox-name"><span class="label label-success"><i class="fa fa-map-marker"></i></span> <?php echo $start_display; ?></td>
-                                                    <td class="mailbox-name"><span class="label label-danger"><i class="fa fa-flag-checkered"></i></span> <?php echo $drop_display; ?></td>
-                                                    <td class="mailbox-name"> <?php echo !empty($data['vehicles']) ? $data['vehicles'] : ''; ?></td>
+                                                    <td class="mailbox-name">
+                                                        <?php if (!empty($start_display) && $start_display !== '-') { ?>
+                                                            <span class="label label-success"><i class="fa fa-map-marker"></i></span> <?php echo htmlspecialchars($start_display); ?>
+                                                        <?php } else { ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php } ?>
+                                                    </td>
+                                                    <td class="mailbox-name">
+                                                        <?php
+                                                        if (!empty($data['between_stops_array'])) {
+                                                            foreach ($data['between_stops_array'] as $b_idx => $b_name) {
+                                                                echo '<span class="label label-info" style="display:inline-block; margin:2px 2px; font-weight:normal; font-size:11px;"><i class="fa fa-map-pin"></i> ' . ($b_idx + 1) . '. ' . htmlspecialchars($b_name) . '</span> ';
+                                                            }
+                                                        } elseif (!empty($data['between_stops_names'])) {
+                                                            echo htmlspecialchars($data['between_stops_names']);
+                                                        } else {
+                                                            echo '<span class="text-muted">-</span>';
+                                                        }
+                                                        ?>
+                                                    </td>
+                                                    <td class="mailbox-name">
+                                                        <?php if (!empty($drop_display) && $drop_display !== '-') { ?>
+                                                            <span class="label label-danger"><i class="fa fa-flag-checkered"></i></span> <?php echo htmlspecialchars($drop_display); ?>
+                                                        <?php } else { ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php } ?>
+                                                    </td>
+                                                    <td class="mailbox-name">
+                                                        <?php if (!empty($data['vehicles'])) { ?>
+                                                            <span class="label label-default" style="font-weight:normal; font-size:11px;"><i class="fa fa-bus"></i> <?php echo htmlspecialchars($data['vehicles']); ?></span>
+                                                        <?php } else { ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php } ?>
+                                                    </td>
                                                     <td class="mailbox-date pull-right no-print">
                                                         <?php if ($this->rbac->hasPrivilege('routes', 'can_edit')) {?>
                                                             <a href="<?php echo base_url(); ?>admin/route/edit/<?php echo $data['id'] ?>" class="btn btn-primary btn-xs"  data-toggle="tooltip" title="<?php echo $this->lang->line('edit'); ?>">
