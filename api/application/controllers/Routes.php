@@ -295,6 +295,7 @@ class Routes extends Base
             'pickup_point'   => $route_data['pickup_point'],
             'drop_point'     => $route_data['drop_point'],
             'between_stops'  => $route_data['between_stops'],
+            'between_routes' => $route_data['between_stops'],
             'timeline'       => $route_data['timeline'],
         ];
 
@@ -402,6 +403,7 @@ class Routes extends Base
             $route['pickup_point']   = $route_data['pickup_point'];
             $route['drop_point']     = $route_data['drop_point'];
             $route['between_stops']  = $route_data['between_stops'];
+            $route['between_routes'] = $route_data['between_stops'];
             $route['timeline']       = $route_data['timeline'];
 
             $result[] = $route;
@@ -420,6 +422,7 @@ class Routes extends Base
             'pickup_point'   => null,
             'drop_point'     => null,
             'between_stops'  => [],
+            'between_routes' => [],
             'next_stop'      => null,
             'next_stop_name' => null,
         ];
@@ -429,23 +432,31 @@ class Routes extends Base
         }
 
         $has_point_type = $this->db->field_exists('point_type', 'route_pickup_point');
+        $has_order_num  = $this->db->field_exists('order_number', 'route_pickup_point');
+
         $select_fields = '
             rpp.id as rpp_id,
             rpp.pickup_point_id,
             pp.name as title,
             pp.latitude,
             pp.longitude,
-            rpp.pickup_time,
-            rpp.order_number' . ($has_point_type ? ', rpp.point_type' : '');
+            rpp.pickup_time';
+        if ($has_order_num) {
+            $select_fields .= ', rpp.order_number';
+        }
+        if ($has_point_type) {
+            $select_fields .= ', rpp.point_type';
+        }
 
-        $points = $this->db->select($select_fields)
-        ->from('route_pickup_point rpp')
-        ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
-        ->where('rpp.transport_route_id', $route_id)
-        ->order_by('rpp.order_number', 'ASC')
-        ->order_by('rpp.id', 'ASC')
-        ->get()
-        ->result_array();
+        $this->db->select($select_fields)
+            ->from('route_pickup_point rpp')
+            ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
+            ->where('rpp.transport_route_id', $route_id);
+
+        if ($has_order_num) {
+            $this->db->order_by('rpp.order_number', 'ASC');
+        }
+        $points = $this->db->order_by('rpp.id', 'ASC')->get()->result_array();
 
         if (empty($points)) {
             return $empty_result;
@@ -585,9 +596,15 @@ class Routes extends Base
         $pickup_point = !empty($timeline[0]) ? $timeline[0] : null;
         $drop_point   = (count($timeline) > 1) ? $timeline[count($timeline) - 1] : null;
         $between_stops = [];
-        if (count($timeline) > 2) {
-            for ($bi = 1; $bi < count($timeline) - 1; $bi++) {
-                $between_stops[] = $timeline[$bi];
+
+        foreach ($timeline as $idx => $st) {
+            $is_pickup = ($idx === 0) || (isset($st['point_type']) && $st['point_type'] === 'pickup');
+            $is_drop   = (count($timeline) > 1 && $idx === count($timeline) - 1) || (isset($st['point_type']) && $st['point_type'] === 'drop');
+
+            if (isset($st['point_type']) && $st['point_type'] === 'stop') {
+                $between_stops[] = $st;
+            } elseif (!$is_pickup && !$is_drop) {
+                $between_stops[] = $st;
             }
         }
 
@@ -613,6 +630,7 @@ class Routes extends Base
             'pickup_point'   => $pickup_point,
             'drop_point'     => $drop_point,
             'between_stops'  => $between_stops,
+            'between_routes' => $between_stops,
             'next_stop'      => $next_stop,
             'next_stop_name' => $next_stop_name,
         ];

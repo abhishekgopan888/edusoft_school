@@ -294,10 +294,14 @@ class Bus extends Base
         );
 
         $trip_details = [
-            'trip_id'    => (string)$trip_info['trip_id'],
-            'route_name' => (string)$trip_info['route_name'],
-            'trip_type'  => (string)$trip_info['trip_type'],
-            'status'     => (string)$trip_info['status'],
+            'trip_id'        => (string)$trip_info['trip_id'],
+            'route_name'     => (string)$trip_info['route_name'],
+            'trip_type'      => (string)$trip_info['trip_type'],
+            'status'         => (string)$trip_info['status'],
+            'next_stop'      => $trip_info['next_stop'],
+            'next_stop_name' => $trip_info['next_stop_name'],
+            'between_stops'  => $trip_info['between_stops'],
+            'between_routes' => $trip_info['between_routes'],
         ];
 
         if ($last_item_info) {
@@ -312,10 +316,13 @@ class Bus extends Base
             'route_name'      => (string)$trip_info['route_name'],
             'trip_type'       => (string)$trip_info['trip_type'],
             'latest_location' => $last_item_info,
+            'next_stop'       => $trip_info['next_stop'],
+            'next_stop_name'  => $trip_info['next_stop_name'],
             'trip_details'    => $trip_details,
             'pickup_point'    => $trip_info['pickup_point'],
             'drop_point'      => $trip_info['drop_point'],
             'between_stops'   => $trip_info['between_stops'],
+            'between_routes'  => $trip_info['between_routes'],
             'timeline'        => $trip_info['timeline'],
             'locations'       => $batch_data,
         ];
@@ -386,25 +393,32 @@ class Bus extends Base
         $trip_info = $this->_resolve_trip_details($location['trip_id'], $location['bus_id'], (float)$location['latitude'], (float)$location['longitude']);
 
         $response_data = [
-            'bus_id'        => (string)$location['bus_id'],
-            'trip_id'       => (string)$trip_info['trip_id'],
-            'route_name'    => (string)$trip_info['route_name'],
-            'trip_type'     => (string)$trip_info['trip_type'],
-            'latitude'      => (float)$location['latitude'],
-            'longitude'     => (float)$location['longitude'],
-            'speed'         => (float)$location['speed'],
-            'heading'       => (float)$location['heading'],
-            'recorded_at'   => $location['recorded_at'],
-            'trip_details'  => [
-                'trip_id'    => (string)$trip_info['trip_id'],
-                'route_name' => (string)$trip_info['route_name'],
-                'trip_type'  => (string)$trip_info['trip_type'],
-                'status'     => (string)$trip_info['status'],
+            'bus_id'         => (string)$location['bus_id'],
+            'trip_id'        => (string)$trip_info['trip_id'],
+            'route_name'     => (string)$trip_info['route_name'],
+            'trip_type'      => (string)$trip_info['trip_type'],
+            'latitude'       => (float)$location['latitude'],
+            'longitude'      => (float)$location['longitude'],
+            'speed'          => (float)$location['speed'],
+            'heading'        => (float)$location['heading'],
+            'recorded_at'    => $location['recorded_at'],
+            'next_stop'      => $trip_info['next_stop'],
+            'next_stop_name' => $trip_info['next_stop_name'],
+            'trip_details'   => [
+                'trip_id'        => (string)$trip_info['trip_id'],
+                'route_name'     => (string)$trip_info['route_name'],
+                'trip_type'      => (string)$trip_info['trip_type'],
+                'status'         => (string)$trip_info['status'],
+                'next_stop'      => $trip_info['next_stop'],
+                'next_stop_name' => $trip_info['next_stop_name'],
+                'between_stops'  => $trip_info['between_stops'],
+                'between_routes' => $trip_info['between_routes'],
             ],
-            'pickup_point'  => $trip_info['pickup_point'],
-            'drop_point'    => $trip_info['drop_point'],
-            'between_stops' => $trip_info['between_stops'],
-            'timeline'      => $trip_info['timeline'],
+            'pickup_point'   => $trip_info['pickup_point'],
+            'drop_point'     => $trip_info['drop_point'],
+            'between_stops'  => $trip_info['between_stops'],
+            'between_routes' => $trip_info['between_routes'],
+            'timeline'       => $trip_info['timeline'],
         ];
 
         $this->_success('Latest bus location retrieved successfully', $response_data);
@@ -454,7 +468,37 @@ class Bus extends Base
             }
         }
 
-        // 4. Fallback: check latest trip for this bus_id
+        // 4. Check bus_locations for latest recorded trip_id for this bus_id
+        if (empty($trip) && !empty($bus_id) && $this->db->table_exists('bus_locations') && $this->db->table_exists('trips')) {
+            $latest_loc = $this->db->select('trip_id')
+                ->where('bus_id', $bus_id)
+                ->where('trip_id IS NOT NULL', null, false)
+                ->order_by('id', 'DESC')
+                ->limit(1)
+                ->get('bus_locations')
+                ->row_array();
+            if (!empty($latest_loc['trip_id'])) {
+                $trip = $this->db->where('id', $latest_loc['trip_id'])->get('trips')->row_array();
+            }
+        }
+
+        // 5. Check numeric extracted ID (e.g. BUS_08 -> 8)
+        $extracted_id = !empty($bus_id) ? preg_replace('/[^0-9]/', '', (string)$bus_id) : '';
+        if (empty($trip) && !empty($extracted_id) && $this->db->table_exists('trips')) {
+            $trip = $this->db->where_in('bus_id', [(string)$extracted_id, (int)$extracted_id])
+                ->where('status', 'started')
+                ->order_by('id', 'DESC')
+                ->get('trips')
+                ->row_array();
+            if (empty($trip)) {
+                $trip = $this->db->where_in('bus_id', [(string)$extracted_id, (int)$extracted_id])
+                    ->order_by('id', 'DESC')
+                    ->get('trips')
+                    ->row_array();
+            }
+        }
+
+        // 6. Fallback: check latest trip for this bus_id
         if (empty($trip) && !empty($bus_id) && $this->db->table_exists('trips')) {
             $trip = $this->db->where('bus_id', $bus_id)
                 ->order_by('id', 'DESC')
@@ -462,7 +506,7 @@ class Bus extends Base
                 ->row_array();
         }
 
-        // 5. Fallback: find any active started trip in the system
+        // 7. Fallback: find any active started trip in the system
         if (empty($trip) && $this->db->table_exists('trips')) {
             $trip = $this->db->where('status', 'started')
                 ->order_by('id', 'DESC')
@@ -470,7 +514,7 @@ class Bus extends Base
                 ->row_array();
         }
 
-        // 6. Fallback: find latest trip in the system
+        // 8. Fallback: find latest trip in the system
         if (empty($trip) && $this->db->table_exists('trips')) {
             $trip = $this->db->order_by('id', 'DESC')
                 ->get('trips')
@@ -496,18 +540,56 @@ class Bus extends Base
             $resolved_trip_id = (string)$trip_id;
         }
 
-        // If no route_id found from trip, find route from vehicle_routes or route_pickup_point
-        if (empty($route_id) && !empty($bus_id) && $this->db->table_exists('vehicle_routes')) {
-            $vr = $this->db->where('vehicle_id', $bus_id)->get('vehicle_routes')->row_array();
+        // If trip route has no stops, or no route_id found, resolve route from vehicle_routes
+        $route_stops_count = (!empty($route_id) && $this->db->table_exists('route_pickup_point'))
+            ? $this->db->where('transport_route_id', $route_id)->count_all_results('route_pickup_point')
+            : 0;
+
+        if ($route_stops_count <= 1 && $this->db->table_exists('vehicle_routes')) {
+            $vr = null;
+            // Try vehicle lookup by vehicle_no or id
+            if (!empty($bus_id) && $this->db->table_exists('vehicles')) {
+                $veh = $this->db->where('vehicle_no', $bus_id)
+                    ->or_where('id', $bus_id)
+                    ->or_where('registration_number', $bus_id)
+                    ->get('vehicles')
+                    ->row_array();
+                if (!empty($veh['id'])) {
+                    $vr = $this->db->where('vehicle_id', $veh['id'])->order_by('id', 'DESC')->get('vehicle_routes')->row_array();
+                }
+            }
+
+            if (empty($vr) && !empty($bus_id)) {
+                $vr = $this->db->where('vehicle_id', $bus_id)->order_by('id', 'DESC')->get('vehicle_routes')->row_array();
+            }
+
+            if (empty($vr) && !empty($extracted_id)) {
+                $vr = $this->db->where('vehicle_id', (int)$extracted_id)->order_by('id', 'DESC')->get('vehicle_routes')->row_array();
+            }
+
+            if (empty($vr) && !empty($trip['bus_id'])) {
+                $vr = $this->db->where('vehicle_id', $trip['bus_id'])->order_by('id', 'DESC')->get('vehicle_routes')->row_array();
+            }
+
             if (!empty($vr['route_id'])) {
-                $route_id = (int)$vr['route_id'];
+                $vr_stops = $this->db->where('transport_route_id', $vr['route_id'])->count_all_results('route_pickup_point');
+                if ($vr_stops > $route_stops_count) {
+                    $route_id = (int)$vr['route_id'];
+                }
             }
         }
 
-        if (empty($route_id) && $this->db->table_exists('route_pickup_point')) {
-            $rpp = $this->db->select('transport_route_id')->order_by('id', 'ASC')->limit(1)->get('route_pickup_point')->row_array();
-            if (!empty($rpp['transport_route_id'])) {
-                $route_id = (int)$rpp['transport_route_id'];
+        // Fallback: If still no route with stops, find the active route that has the most stops defined
+        if ($route_stops_count <= 1 && $this->db->table_exists('route_pickup_point')) {
+            $best_route = $this->db->select('transport_route_id, COUNT(*) as c')
+                ->group_by('transport_route_id')
+                ->having('c > 1')
+                ->order_by('c', 'DESC')
+                ->limit(1)
+                ->get('route_pickup_point')
+                ->row_array();
+            if (!empty($best_route['transport_route_id'])) {
+                $route_id = (int)$best_route['transport_route_id'];
             }
         }
 
@@ -523,7 +605,7 @@ class Bus extends Base
 
         $timeline_info = !empty($route_id) 
             ? $this->_build_timeline($route_id, $resolved_trip_id, $status, $start_time, $bus_lat, $bus_lng)
-            : ['timeline' => [], 'pickup_point' => null, 'drop_point' => null, 'between_stops' => []];
+            : ['timeline' => [], 'pickup_point' => null, 'drop_point' => null, 'between_stops' => [], 'between_routes' => []];
 
         $timeline = $timeline_info['timeline'];
 
@@ -557,6 +639,7 @@ class Bus extends Base
             'pickup_point'   => $timeline_info['pickup_point'],
             'drop_point'     => $timeline_info['drop_point'],
             'between_stops'  => $timeline_info['between_stops'],
+            'between_routes' => $timeline_info['between_routes'],
             'timeline'       => $timeline,
         ];
     }
@@ -567,10 +650,11 @@ class Bus extends Base
     private function _build_timeline($route_id, $trip_id = null, $trip_status = 'started', $start_time = null, $bus_lat = null, $bus_lng = null)
     {
         $empty_result = [
-            'timeline'      => [],
-            'pickup_point'  => null,
-            'drop_point'    => null,
-            'between_stops' => [],
+            'timeline'       => [],
+            'pickup_point'   => null,
+            'drop_point'     => null,
+            'between_stops'  => [],
+            'between_routes' => [],
         ];
 
         if (empty($route_id) || !$this->db->table_exists('route_pickup_point')) {
@@ -578,23 +662,31 @@ class Bus extends Base
         }
 
         $has_point_type = $this->db->field_exists('point_type', 'route_pickup_point');
+        $has_order_num  = $this->db->field_exists('order_number', 'route_pickup_point');
+
         $select_fields = '
             rpp.id as rpp_id,
             rpp.pickup_point_id,
             pp.name as title,
             pp.latitude,
             pp.longitude,
-            rpp.pickup_time,
-            rpp.order_number' . ($has_point_type ? ', rpp.point_type' : '');
+            rpp.pickup_time';
+        if ($has_order_num) {
+            $select_fields .= ', rpp.order_number';
+        }
+        if ($has_point_type) {
+            $select_fields .= ', rpp.point_type';
+        }
 
-        $points = $this->db->select($select_fields)
-        ->from('route_pickup_point rpp')
-        ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
-        ->where('rpp.transport_route_id', $route_id)
-        ->order_by('rpp.order_number', 'ASC')
-        ->order_by('rpp.id', 'ASC')
-        ->get()
-        ->result_array();
+        $this->db->select($select_fields)
+            ->from('route_pickup_point rpp')
+            ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id')
+            ->where('rpp.transport_route_id', $route_id);
+
+        if ($has_order_num) {
+            $this->db->order_by('rpp.order_number', 'ASC');
+        }
+        $points = $this->db->order_by('rpp.id', 'ASC')->get()->result_array();
 
         if (empty($points)) {
             return $empty_result;
@@ -711,17 +803,24 @@ class Bus extends Base
         $pickup_point = !empty($timeline[0]) ? $timeline[0] : null;
         $drop_point   = (count($timeline) > 1) ? $timeline[count($timeline) - 1] : null;
         $between_stops = [];
-        if (count($timeline) > 2) {
-            for ($bi = 1; $bi < count($timeline) - 1; $bi++) {
-                $between_stops[] = $timeline[$bi];
+
+        foreach ($timeline as $idx => $st) {
+            $is_pickup = ($idx === 0) || (isset($st['point_type']) && $st['point_type'] === 'pickup');
+            $is_drop   = (count($timeline) > 1 && $idx === count($timeline) - 1) || (isset($st['point_type']) && $st['point_type'] === 'drop');
+
+            if (isset($st['point_type']) && $st['point_type'] === 'stop') {
+                $between_stops[] = $st;
+            } elseif (!$is_pickup && !$is_drop) {
+                $between_stops[] = $st;
             }
         }
 
         return [
-            'timeline'      => $timeline,
-            'pickup_point'  => $pickup_point,
-            'drop_point'    => $drop_point,
-            'between_stops' => $between_stops,
+            'timeline'       => $timeline,
+            'pickup_point'   => $pickup_point,
+            'drop_point'     => $drop_point,
+            'between_stops'  => $between_stops,
+            'between_routes' => $between_stops,
         ];
     }
 
