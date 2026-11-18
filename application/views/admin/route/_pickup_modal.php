@@ -1,6 +1,12 @@
-<!-- Leaflet CSS and JS -->
+<!-- Leaflet CSS and JS with HTTPS CDN Fallback -->
 <link rel="stylesheet" href="<?php echo base_url(); ?>backend/plugins/leaflet/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <script src="<?php echo base_url(); ?>backend/plugins/leaflet/leaflet.js"></script>
+<script>
+    if (typeof L === 'undefined') {
+        document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""><\/script>');
+    }
+</script>
 
 <!-- Add Pickup Point Map Modal -->
 <div id="add_pickup_modal" class="modal fade" role="dialog" data-backdrop="static" data-keyboard="false">
@@ -30,7 +36,7 @@
 
                     <!-- Interactive Map -->
                     <div style="position: relative; margin-bottom: 10px;">
-                        <div id="route_map_canvas" style="height: 380px; width: 100%; border-radius: 4px; border: 1px solid #d2d6de; z-index: 1;"></div>
+                        <div id="route_map_canvas" style="height: 380px; min-height: 380px; width: 100%; border-radius: 4px; border: 1px solid #d2d6de; z-index: 1; background: #e5e3df; position: relative;"></div>
                         <div id="route_map_hint" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); padding: 5px 15px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 12px; pointer-events: none; z-index: 999;">
                             <i class="fa fa-map-marker text-danger"></i> Click anywhere on the map to set pickup point
                         </div>
@@ -63,14 +69,15 @@
 <script type="text/javascript">
     var base_url = '<?php echo base_url(); ?>';
 
-    // Configure Leaflet default marker icons
-    if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
-        delete L.Icon.Default.prototype._getIconUrl;
-        L.Icon.Default.mergeOptions({
-            iconRetinaUrl: base_url + 'backend/plugins/leaflet/images/marker-icon-2x.png',
-            iconUrl: base_url + 'backend/plugins/leaflet/images/marker-icon.png',
-            shadowUrl: base_url + 'backend/plugins/leaflet/images/marker-shadow.png'
-        });
+    function setupRouteLeafletIcons() {
+        if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
+            delete L.Icon.Default.prototype._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+            });
+        }
     }
 
     var routeModalMap = null;
@@ -78,6 +85,12 @@
     var currentTargetSelect = null;
 
     function initRouteModalMap(lat, lng, name) {
+        setupRouteLeafletIcons();
+        if (typeof L === 'undefined') {
+            console.error('Leaflet is not loaded');
+            return;
+        }
+
         var defaultLat = 8.524139;
         var defaultLng = 76.936638;
         var hasPoint = (lat !== undefined && lat !== null && !isNaN(lat) && lng !== undefined && lng !== null && !isNaN(lng));
@@ -86,14 +99,12 @@
         var centerLng = hasPoint ? parseFloat(lng) : defaultLng;
         var zoomLevel = hasPoint ? 16 : 13;
 
-        if (typeof L === 'undefined') return;
-
         if (!routeModalMap) {
             routeModalMap = L.map('route_map_canvas').setView([centerLat, centerLng], zoomLevel);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                subdomains: 'abcd',
-                maxZoom: 20,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                subdomains: ['a', 'b', 'c'],
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(routeModalMap);
 
             routeModalMap.on('click', function(e) {
@@ -101,7 +112,7 @@
             });
         } else {
             routeModalMap.setView([centerLat, centerLng], zoomLevel);
-            routeModalMap.invalidateSize();
+            routeModalMap.invalidateSize(true);
         }
 
         if (hasPoint) {
@@ -256,8 +267,14 @@
         initRouteModalMap();
         if (routeModalMap) {
             setTimeout(function() {
-                routeModalMap.invalidateSize();
-            }, 200);
+                if (routeModalMap) routeModalMap.invalidateSize(true);
+            }, 100);
+            setTimeout(function() {
+                if (routeModalMap) routeModalMap.invalidateSize(true);
+            }, 300);
+            setTimeout(function() {
+                if (routeModalMap) routeModalMap.invalidateSize(true);
+            }, 600);
         }
     });
 
