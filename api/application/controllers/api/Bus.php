@@ -79,7 +79,7 @@ class Bus extends Base
             'location_get' => [
                 'path' => '/api/bus/location',
                 'summary' => 'Get latest live location for a bus or trip',
-                'description' => 'Retrieves the most recent GPS coordinates, speed, heading, and trip info for a given bus_id or trip_id.',
+                'description' => 'Retrieves the most recent GPS coordinates, speed, heading, routing progress, next stop ETA, and trip info for a given bus_id or trip_id.',
                 'http_method' => 'get',
                 'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
@@ -99,7 +99,7 @@ class Bus extends Base
                     ]
                 ],
                 'responses' => [
-                    '200' => ['description' => 'Latest bus location and telemetry retrieved successfully'],
+                    '200' => ['description' => 'Latest bus location and telemetry retrieved successfully with routing progress and ETA'],
                     '404' => ['description' => 'No location recorded yet for this bus or trip']
                 ]
             ]
@@ -290,18 +290,24 @@ class Bus extends Base
             $last_trip_id,
             $last_bus_id,
             $last_item_info ? (float)$last_item_info['latitude'] : null,
-            $last_item_info ? (float)$last_item_info['longitude'] : null
+            $last_item_info ? (float)$last_item_info['longitude'] : null,
+            $last_item_info ? (float)$last_item_info['speed'] : null,
+            $last_item_info ? $last_item_info['timestamp'] : null
         );
 
         $trip_details = [
-            'trip_id'        => (string)$trip_info['trip_id'],
-            'route_name'     => (string)$trip_info['route_name'],
-            'trip_type'      => (string)$trip_info['trip_type'],
-            'status'         => (string)$trip_info['status'],
-            'next_stop'      => $trip_info['next_stop'],
-            'next_stop_name' => $trip_info['next_stop_name'],
-            'between_stops'  => $trip_info['between_stops'],
-            'between_routes' => $trip_info['between_routes'],
+            'trip_id'                  => (string)$trip_info['trip_id'],
+            'route_name'               => (string)$trip_info['route_name'],
+            'trip_type'                => (string)$trip_info['trip_type'],
+            'status'                   => (string)$trip_info['status'],
+            'routing_progress'         => $trip_info['routing_progress'],
+            'next_stop'                => $trip_info['next_stop'],
+            'next_stop_name'           => $trip_info['next_stop_name'],
+            'time_to_reach_next_stop'  => $trip_info['time_to_reach_next_stop'],
+            'estimated_arrival_time'   => $trip_info['estimated_arrival_time'],
+            'distance_to_next_stop_km' => $trip_info['distance_to_next_stop_km'],
+            'between_stops'            => $trip_info['between_stops'],
+            'between_routes'           => $trip_info['between_routes'],
         ];
 
         if ($last_item_info) {
@@ -310,21 +316,25 @@ class Bus extends Base
         }
 
         $response_data = [
-            'recorded_count'  => $recorded_count,
-            'bus_id'          => $last_bus_id,
-            'trip_id'         => (string)$trip_info['trip_id'],
-            'route_name'      => (string)$trip_info['route_name'],
-            'trip_type'       => (string)$trip_info['trip_type'],
-            'latest_location' => $last_item_info,
-            'next_stop'       => $trip_info['next_stop'],
-            'next_stop_name'  => $trip_info['next_stop_name'],
-            'trip_details'    => $trip_details,
-            'pickup_point'    => $trip_info['pickup_point'],
-            'drop_point'      => $trip_info['drop_point'],
-            'between_stops'   => $trip_info['between_stops'],
-            'between_routes'  => $trip_info['between_routes'],
-            'timeline'        => $trip_info['timeline'],
-            'locations'       => $batch_data,
+            'recorded_count'           => $recorded_count,
+            'bus_id'                   => $last_bus_id,
+            'trip_id'                  => (string)$trip_info['trip_id'],
+            'route_name'               => (string)$trip_info['route_name'],
+            'trip_type'                => (string)$trip_info['trip_type'],
+            'latest_location'          => $last_item_info,
+            'routing_progress'         => $trip_info['routing_progress'],
+            'next_stop'                => $trip_info['next_stop'],
+            'next_stop_name'           => $trip_info['next_stop_name'],
+            'time_to_reach_next_stop'  => $trip_info['time_to_reach_next_stop'],
+            'estimated_arrival_time'   => $trip_info['estimated_arrival_time'],
+            'distance_to_next_stop_km' => $trip_info['distance_to_next_stop_km'],
+            'trip_details'             => $trip_details,
+            'pickup_point'             => $trip_info['pickup_point'],
+            'drop_point'               => $trip_info['drop_point'],
+            'between_stops'            => $trip_info['between_stops'],
+            'between_routes'           => $trip_info['between_routes'],
+            'timeline'                 => $trip_info['timeline'],
+            'locations'                => $batch_data,
         ];
 
         // Backwards compatibility for single-record payloads
@@ -390,35 +400,52 @@ class Bus extends Base
             }
         }
 
-        $trip_info = $this->_resolve_trip_details($location['trip_id'], $location['bus_id'], (float)$location['latitude'], (float)$location['longitude']);
+        $trip_info = $this->_resolve_trip_details(
+            $location['trip_id'],
+            $location['bus_id'],
+            (float)$location['latitude'],
+            (float)$location['longitude'],
+            isset($location['speed']) ? (float)$location['speed'] : null,
+            $location['recorded_at'] ?? null
+        );
+
+        $trip_details = [
+            'trip_id'                  => (string)$trip_info['trip_id'],
+            'route_name'               => (string)$trip_info['route_name'],
+            'trip_type'                => (string)$trip_info['trip_type'],
+            'status'                   => (string)$trip_info['status'],
+            'routing_progress'         => $trip_info['routing_progress'],
+            'next_stop'                => $trip_info['next_stop'],
+            'next_stop_name'           => $trip_info['next_stop_name'],
+            'time_to_reach_next_stop'  => $trip_info['time_to_reach_next_stop'],
+            'estimated_arrival_time'   => $trip_info['estimated_arrival_time'],
+            'distance_to_next_stop_km' => $trip_info['distance_to_next_stop_km'],
+            'between_stops'            => $trip_info['between_stops'],
+            'between_routes'           => $trip_info['between_routes'],
+        ];
 
         $response_data = [
-            'bus_id'         => (string)$location['bus_id'],
-            'trip_id'        => (string)$trip_info['trip_id'],
-            'route_name'     => (string)$trip_info['route_name'],
-            'trip_type'      => (string)$trip_info['trip_type'],
-            'latitude'       => (float)$location['latitude'],
-            'longitude'      => (float)$location['longitude'],
-            'speed'          => (float)$location['speed'],
-            'heading'        => (float)$location['heading'],
-            'recorded_at'    => $location['recorded_at'],
-            'next_stop'      => $trip_info['next_stop'],
-            'next_stop_name' => $trip_info['next_stop_name'],
-            'trip_details'   => [
-                'trip_id'        => (string)$trip_info['trip_id'],
-                'route_name'     => (string)$trip_info['route_name'],
-                'trip_type'      => (string)$trip_info['trip_type'],
-                'status'         => (string)$trip_info['status'],
-                'next_stop'      => $trip_info['next_stop'],
-                'next_stop_name' => $trip_info['next_stop_name'],
-                'between_stops'  => $trip_info['between_stops'],
-                'between_routes' => $trip_info['between_routes'],
-            ],
-            'pickup_point'   => $trip_info['pickup_point'],
-            'drop_point'     => $trip_info['drop_point'],
-            'between_stops'  => $trip_info['between_stops'],
-            'between_routes' => $trip_info['between_routes'],
-            'timeline'       => $trip_info['timeline'],
+            'bus_id'                   => (string)$location['bus_id'],
+            'trip_id'                  => (string)$trip_info['trip_id'],
+            'route_name'               => (string)$trip_info['route_name'],
+            'trip_type'                => (string)$trip_info['trip_type'],
+            'latitude'                 => (float)$location['latitude'],
+            'longitude'                => (float)$location['longitude'],
+            'speed'                    => (float)$location['speed'],
+            'heading'                  => (float)$location['heading'],
+            'recorded_at'              => $location['recorded_at'],
+            'routing_progress'         => $trip_info['routing_progress'],
+            'next_stop'                => $trip_info['next_stop'],
+            'next_stop_name'           => $trip_info['next_stop_name'],
+            'time_to_reach_next_stop'  => $trip_info['time_to_reach_next_stop'],
+            'estimated_arrival_time'   => $trip_info['estimated_arrival_time'],
+            'distance_to_next_stop_km' => $trip_info['distance_to_next_stop_km'],
+            'trip_details'             => $trip_details,
+            'pickup_point'             => $trip_info['pickup_point'],
+            'drop_point'               => $trip_info['drop_point'],
+            'between_stops'            => $trip_info['between_stops'],
+            'between_routes'           => $trip_info['between_routes'],
+            'timeline'                 => $trip_info['timeline'],
         ];
 
         $this->_success('Latest bus location retrieved successfully', $response_data);
@@ -427,7 +454,7 @@ class Bus extends Base
     /**
      * Helper to resolve trip-based details by checking what trip is started in database
      */
-    private function _resolve_trip_details($trip_id = null, $bus_id = null, $bus_lat = null, $bus_lng = null)
+    private function _resolve_trip_details($trip_id = null, $bus_id = null, $bus_lat = null, $bus_lng = null, $bus_speed = null, $recorded_at = null)
     {
         $trip = null;
 
@@ -604,7 +631,7 @@ class Bus extends Base
         }
 
         $timeline_info = !empty($route_id) 
-            ? $this->_build_timeline($route_id, $resolved_trip_id, $status, $start_time, $bus_lat, $bus_lng)
+            ? $this->_build_timeline($route_id, $resolved_trip_id, $status, $start_time, $bus_lat, $bus_lng, $bus_speed, $recorded_at)
             : ['timeline' => [], 'pickup_point' => null, 'drop_point' => null, 'between_stops' => [], 'between_routes' => []];
 
         $timeline = $timeline_info['timeline'];
@@ -626,28 +653,34 @@ class Bus extends Base
         }
         $next_stop_name = !empty($next_stop['title']) ? $next_stop['title'] : null;
 
+        $routing_progress = $this->_calculate_routing_progress($timeline, $status, $next_stop);
+
         return [
-            'trip_id'        => $resolved_trip_id,
-            'route_id'       => $route_id,
-            'route_name'     => $route_name,
-            'driver_id'      => $driver_id,
-            'trip_type'      => $trip_type,
-            'status'         => $status,
-            'start_time'     => $start_time,
-            'next_stop'      => $next_stop,
-            'next_stop_name' => $next_stop_name,
-            'pickup_point'   => $timeline_info['pickup_point'],
-            'drop_point'     => $timeline_info['drop_point'],
-            'between_stops'  => $timeline_info['between_stops'],
-            'between_routes' => $timeline_info['between_routes'],
-            'timeline'       => $timeline,
+            'trip_id'                  => $resolved_trip_id,
+            'route_id'                 => $route_id,
+            'route_name'               => $route_name,
+            'driver_id'                => $driver_id,
+            'trip_type'                => $trip_type,
+            'status'                   => $status,
+            'start_time'               => $start_time,
+            'next_stop'                => $next_stop,
+            'next_stop_name'           => $next_stop_name,
+            'time_to_reach_next_stop'  => $routing_progress['time_to_reach_next_stop'],
+            'estimated_arrival_time'   => $routing_progress['estimated_arrival_time'],
+            'distance_to_next_stop_km' => $routing_progress['distance_to_next_stop_km'],
+            'routing_progress'         => $routing_progress,
+            'pickup_point'             => $timeline_info['pickup_point'],
+            'drop_point'               => $timeline_info['drop_point'],
+            'between_stops'            => $timeline_info['between_stops'],
+            'between_routes'           => $timeline_info['between_routes'],
+            'timeline'                 => $timeline,
         ];
     }
 
     /**
-     * Builds real timeline of pickup points from database
+     * Builds real timeline of pickup points from database with live routing progress and ETA
      */
-    private function _build_timeline($route_id, $trip_id = null, $trip_status = 'started', $start_time = null, $bus_lat = null, $bus_lng = null)
+    private function _build_timeline($route_id, $trip_id = null, $trip_status = 'started', $start_time = null, $bus_lat = null, $bus_lng = null, $bus_speed = null, $recorded_at = null)
     {
         $empty_result = [
             'timeline'       => [],
@@ -763,7 +796,33 @@ class Bus extends Base
             $in_progress_idx = 1;
         }
 
+        // Setup base time for ETA calculation
+        $base_time = time();
+        if (!empty($recorded_at)) {
+            $rec_parsed = strtotime($recorded_at);
+            if ($rec_parsed !== false && abs(time() - $rec_parsed) <= 3600) {
+                $base_time = $rec_parsed;
+            }
+        }
+
+        // Effective transit speed in km/h (school buses in urban traffic average 20-30 km/h)
+        $effective_speed = ($bus_speed !== null && (float)$bus_speed >= 10.0 && (float)$bus_speed <= 120.0)
+            ? (float)$bus_speed
+            : 25.0;
+
+        // Check if bus GPS is in the general vicinity of the route (within 100km)
+        $bus_is_nearby = false;
+        if (!empty($bus_lat) && !empty($bus_lng) && !empty($parsed_points[0]['latitude'])) {
+            $dist_to_route = $this->_calculate_distance_km($bus_lat, $bus_lng, $parsed_points[0]['latitude'], $parsed_points[0]['longitude']);
+            if ($dist_to_route <= 100.0) {
+                $bus_is_nearby = true;
+            }
+        }
+
         $timeline = [];
+        $cumulative_road_km = 0.0;
+        $cumulative_minutes = 0;
+
         foreach ($parsed_points as $i => $p) {
             $status = 'upcoming';
             $actual_time = null;
@@ -786,17 +845,91 @@ class Bus extends Base
                 }
             }
 
+            // Calculate distance & estimated time to reach
+            $dist_km = null;
+            $dist_m = null;
+            $dist_txt = null;
+            $time_reach = null;
+            $eta_mins = null;
+            $eta_clock = null;
+
+            if ($status === 'completed') {
+                $dist_km = 0.0;
+                $dist_m = 0;
+                $dist_txt = '0 m';
+                $time_reach = 'Reached';
+                $eta_mins = 0;
+                $eta_clock = !empty($actual_time) ? $actual_time : $p['sched_time'];
+            } elseif ($status === 'in_progress') {
+                if ($bus_is_nearby && !empty($p['latitude']) && !empty($p['longitude'])) {
+                    $direct_dist = $this->_calculate_distance_km($bus_lat, $bus_lng, $p['latitude'], $p['longitude']);
+                    $leg_road_km = round($direct_dist * 1.25, 2);
+                } elseif ($i > 0 && !empty($parsed_points[$i - 1]['latitude']) && !empty($p['latitude'])) {
+                    $leg_dist = $this->_calculate_distance_km(
+                        $parsed_points[$i - 1]['latitude'],
+                        $parsed_points[$i - 1]['longitude'],
+                        $p['latitude'],
+                        $p['longitude']
+                    );
+                    $leg_road_km = round($leg_dist * 1.25, 2);
+                } else {
+                    $leg_road_km = 2.5;
+                }
+
+                $leg_mins = max(1, (int)round(($leg_road_km / $effective_speed) * 60));
+                $cumulative_road_km = $leg_road_km;
+                $cumulative_minutes = $leg_mins;
+
+                $dist_km = round($cumulative_road_km, 2);
+                $dist_m = (int)round($dist_km * 1000);
+                $dist_txt = ($dist_km < 1.0) ? ($dist_m . ' m') : ($dist_km . ' km');
+                $eta_mins = $cumulative_minutes;
+                $time_reach = $eta_mins . ' ' . ($eta_mins === 1 ? 'min' : 'mins');
+                $eta_clock = date('h:i A', $base_time + ($cumulative_minutes * 60));
+            } else { // upcoming
+                if ($i > 0 && !empty($parsed_points[$i - 1]['latitude']) && !empty($p['latitude'])) {
+                    $leg_dist = $this->_calculate_distance_km(
+                        $parsed_points[$i - 1]['latitude'],
+                        $parsed_points[$i - 1]['longitude'],
+                        $p['latitude'],
+                        $p['longitude']
+                    );
+                    $leg_road_km = round($leg_dist * 1.25, 2);
+                } else {
+                    $leg_road_km = 3.0;
+                }
+
+                $dwell_time = 1; // 1 min boarding dwell time per stop
+                $leg_mins = max(1, (int)round(($leg_road_km / $effective_speed) * 60)) + $dwell_time;
+
+                $cumulative_road_km += $leg_road_km;
+                $cumulative_minutes += $leg_mins;
+
+                $dist_km = round($cumulative_road_km, 2);
+                $dist_m = (int)round($dist_km * 1000);
+                $dist_txt = ($dist_km < 1.0) ? ($dist_m . ' m') : ($dist_km . ' km');
+                $eta_mins = $cumulative_minutes;
+                $time_reach = $eta_mins . ' mins';
+                $eta_clock = date('h:i A', $base_time + ($cumulative_minutes * 60));
+            }
+
             $timeline[] = [
-                'sequence'       => (int)$p['seq'],
-                'stop_id'        => $p['stop_id'],
-                'point_type'     => $p['point_type'],
-                'title'          => $p['title'],
-                'latitude'       => (float)$p['latitude'],
-                'longitude'      => (float)$p['longitude'],
-                'status'         => $status,
-                'scheduled_time' => $p['sched_time'],
-                'actual_time'    => $actual_time,
-                'students_count' => (int)$p['students_count'],
+                'sequence'               => (int)$p['seq'],
+                'stop_id'                => $p['stop_id'],
+                'point_type'             => $p['point_type'],
+                'title'                  => $p['title'],
+                'latitude'               => (float)$p['latitude'],
+                'longitude'              => (float)$p['longitude'],
+                'status'                 => $status,
+                'scheduled_time'         => $p['sched_time'],
+                'actual_time'            => $actual_time,
+                'students_count'         => (int)$p['students_count'],
+                'distance_km'            => $dist_km !== null ? (float)$dist_km : null,
+                'distance_meters'        => $dist_m,
+                'distance_text'          => $dist_txt,
+                'time_to_reach'          => $time_reach,
+                'eta_minutes'            => $eta_mins,
+                'estimated_arrival_time' => $eta_clock,
             ];
         }
 
@@ -821,6 +954,85 @@ class Bus extends Base
             'drop_point'     => $drop_point,
             'between_stops'  => $between_stops,
             'between_routes' => $between_stops,
+        ];
+    }
+
+    /**
+     * Calculates overall routing progress metrics and next stop ETA
+     */
+    private function _calculate_routing_progress($timeline, $trip_status = 'started', $next_stop = null)
+    {
+        $total_stops = count($timeline);
+        $completed_stops = 0;
+        $remaining_stops = 0;
+        $current_seq = 1;
+
+        foreach ($timeline as $st) {
+            if ($st['status'] === 'completed') {
+                $completed_stops++;
+            } else {
+                $remaining_stops++;
+            }
+            if ($st['status'] === 'in_progress') {
+                $current_seq = (int)$st['sequence'];
+            }
+        }
+
+        if ($total_stops === 0) {
+            return [
+                'status'                     => $trip_status,
+                'progress_percentage'        => 0,
+                'total_stops'                => 0,
+                'completed_stops'            => 0,
+                'remaining_stops'            => 0,
+                'current_sequence'           => 0,
+                'next_stop_id'               => null,
+                'next_stop_name'             => null,
+                'distance_to_next_stop_km'   => null,
+                'distance_to_next_stop_m'    => null,
+                'distance_to_next_stop_text' => null,
+                'time_to_reach_next_stop'    => null,
+                'eta_minutes'                => null,
+                'estimated_arrival_time'     => null,
+            ];
+        }
+
+        $pct = 0;
+        if ($trip_status === 'completed') {
+            $pct = 100;
+            $completed_stops = $total_stops;
+            $remaining_stops = 0;
+        } elseif ($total_stops > 0) {
+            $pct = min(99, (int)round(($completed_stops / $total_stops) * 100));
+            if ($pct === 0 && $completed_stops > 0) {
+                $pct = (int)round(($completed_stops / $total_stops) * 100);
+            }
+        }
+
+        $next_id    = !empty($next_stop['stop_id']) ? $next_stop['stop_id'] : null;
+        $next_name  = !empty($next_stop['title']) ? $next_stop['title'] : null;
+        $dist_km    = isset($next_stop['distance_km']) ? (float)$next_stop['distance_km'] : null;
+        $dist_m     = isset($next_stop['distance_meters']) ? (int)$next_stop['distance_meters'] : null;
+        $dist_txt   = isset($next_stop['distance_text']) ? $next_stop['distance_text'] : null;
+        $time_reach = isset($next_stop['time_to_reach']) ? $next_stop['time_to_reach'] : null;
+        $eta_min    = isset($next_stop['eta_minutes']) ? (int)$next_stop['eta_minutes'] : null;
+        $eta_time   = isset($next_stop['estimated_arrival_time']) ? $next_stop['estimated_arrival_time'] : null;
+
+        return [
+            'status'                     => $trip_status,
+            'progress_percentage'        => (int)$pct,
+            'total_stops'                => (int)$total_stops,
+            'completed_stops'            => (int)$completed_stops,
+            'remaining_stops'            => (int)$remaining_stops,
+            'current_sequence'           => (int)$current_seq,
+            'next_stop_id'               => $next_id,
+            'next_stop_name'             => $next_name,
+            'distance_to_next_stop_km'   => $dist_km,
+            'distance_to_next_stop_m'    => $dist_m,
+            'distance_to_next_stop_text' => $dist_txt,
+            'time_to_reach_next_stop'    => $time_reach,
+            'eta_minutes'                => $eta_min,
+            'estimated_arrival_time'     => $eta_time,
         ];
     }
 

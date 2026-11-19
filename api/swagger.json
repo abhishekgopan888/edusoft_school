@@ -498,7 +498,7 @@
             },
             "get": {
                 "summary": "Get latest live location for a bus or trip",
-                "description": "Retrieves the most recent GPS coordinates, speed, heading, and trip info for a given bus_id or trip_id.",
+                "description": "Retrieves the most recent GPS coordinates, speed, heading, routing progress, next stop ETA, and trip info for a given bus_id or trip_id.",
                 "tags": [
                     "Bus Live Location"
                 ],
@@ -526,7 +526,142 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Latest bus location and telemetry retrieved successfully"
+                        "description": "Latest bus location, routing progress, next stop ETA, and telemetry retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Latest bus location retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "bus_id": {
+                                                    "type": "string",
+                                                    "example": "BUS_08"
+                                                },
+                                                "trip_id": {
+                                                    "type": "string",
+                                                    "example": "5"
+                                                },
+                                                "route_name": {
+                                                    "type": "string",
+                                                    "example": "Thodupuzha"
+                                                },
+                                                "trip_type": {
+                                                    "type": "string",
+                                                    "example": "pickup"
+                                                },
+                                                "latitude": {
+                                                    "type": "number",
+                                                    "example": 12.973
+                                                },
+                                                "longitude": {
+                                                    "type": "number",
+                                                    "example": 77.596
+                                                },
+                                                "speed": {
+                                                    "type": "number",
+                                                    "example": 38.0
+                                                },
+                                                "heading": {
+                                                    "type": "number",
+                                                    "example": 190.0
+                                                },
+                                                "recorded_at": {
+                                                    "type": "string",
+                                                    "example": "2026-11-19 10:25:00"
+                                                },
+                                                "time_to_reach_next_stop": {
+                                                    "type": "string",
+                                                    "example": "14 mins",
+                                                    "description": "Estimated travel duration to reach the next stop"
+                                                },
+                                                "estimated_arrival_time": {
+                                                    "type": "string",
+                                                    "example": "10:39 AM",
+                                                    "description": "Estimated clock arrival time at the next stop"
+                                                },
+                                                "distance_to_next_stop_km": {
+                                                    "type": "number",
+                                                    "example": 9.0,
+                                                    "description": "Road distance to next stop in km"
+                                                },
+                                                "routing_progress": {
+                                                    "type": "object",
+                                                    "description": "Live route transit and completion progress metrics",
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string",
+                                                            "example": "started"
+                                                        },
+                                                        "progress_percentage": {
+                                                            "type": "integer",
+                                                            "example": 50
+                                                        },
+                                                        "total_stops": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        },
+                                                        "completed_stops": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        },
+                                                        "remaining_stops": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        },
+                                                        "current_sequence": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        },
+                                                        "next_stop_id": {
+                                                            "type": "string",
+                                                            "example": "STP_02"
+                                                        },
+                                                        "next_stop_name": {
+                                                            "type": "string",
+                                                            "example": "Kanyakumarii"
+                                                        },
+                                                        "distance_to_next_stop_km": {
+                                                            "type": "number",
+                                                            "example": 9.0
+                                                        },
+                                                        "distance_to_next_stop_m": {
+                                                            "type": "integer",
+                                                            "example": 9000
+                                                        },
+                                                        "distance_to_next_stop_text": {
+                                                            "type": "string",
+                                                            "example": "9 km"
+                                                        },
+                                                        "time_to_reach_next_stop": {
+                                                            "type": "string",
+                                                            "example": "14 mins"
+                                                        },
+                                                        "eta_minutes": {
+                                                            "type": "integer",
+                                                            "example": 14
+                                                        },
+                                                        "estimated_arrival_time": {
+                                                            "type": "string",
+                                                            "example": "10:39 AM"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "No location recorded yet for this bus or trip"

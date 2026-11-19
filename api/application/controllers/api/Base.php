@@ -3,6 +3,18 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Base extends CI_Controller
 {
+    public function __construct()
+    {
+        parent::__construct();
+        $this->load->database();
+        if ($this->db->table_exists('sch_settings')) {
+            $row = $this->db->select('timezone')->limit(1)->get('sch_settings')->row();
+            if (!empty($row->timezone)) {
+                date_default_timezone_set($row->timezone);
+            }
+        }
+    }
+
     protected $valid_api_keys = [
         'driver-api-secret-key-2026',
         'attender-api-secret-key-2026',
