@@ -127,6 +127,9 @@ if ($this->rbac->hasPrivilege('subject_group', 'can_add')) {
                                         <th><?php echo $this->lang->line('name'); ?></th>
                                         <th><?php echo $this->lang->line('class_section'); ?></th>
                                         <th><?php echo $this->lang->line('subject'); ?></th>
+                                        <th><?php echo $this->lang->line('syllabus'); ?></th>
+                                        <th><?php echo $this->lang->line('text_book'); ?></th>
+                                        <th><?php echo $this->lang->line('description'); ?></th>
                                         <th class="text-right no-print noExport"><?php echo $this->lang->line('action'); ?></th>
                                     </tr>
                                 </thead>
@@ -178,6 +181,9 @@ foreach ($subjectgroup->group_subject as $group_subject_key => $group_subject_va
     }
     ?>
                                             </td>
+                                            <td><?php echo !empty($subjectgroup->syllabus) ? $subjectgroup->syllabus : '-'; ?></td>
+                                            <td><?php echo !empty($subjectgroup->text_book) ? $subjectgroup->text_book : '-'; ?></td>
+                                            <td><?php echo !empty($subjectgroup->description) ? $subjectgroup->description : '-'; ?></td>
                                             <td class="mailbox-date text-right no-print noExport">
 
                                                 <?php
