@@ -63,8 +63,12 @@ class Subjectgroup extends Admin_Controller
             $subject  = $this->input->post('subject');
             $sections = $this->input->post('sections');
 
-            $this->subjectgroup_model->add($class_array, $subject, $sections);
-            $this->session->set_flashdata('msg', '<div class="alert alert-success text-left">' . $this->lang->line('success_message') . '</div>');
+            $insert_id = $this->subjectgroup_model->add($class_array, $subject, $sections);
+            if ($insert_id) {
+                $this->session->set_flashdata('msg', '<div class="alert alert-success text-left">' . $this->lang->line('success_message') . '</div>');
+            } else {
+                $this->session->set_flashdata('msg', '<div class="alert alert-danger text-left">' . $this->lang->line('error_occurred_please_try_again') . '</div>');
+            }
             redirect('admin/subjectgroup');
         }
         $subject_list             = $this->subject_model->get();
