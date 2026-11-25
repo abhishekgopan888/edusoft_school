@@ -282,9 +282,12 @@ class Studentdetails extends CI_Controller
         if ($firstname === $lastname)
             $lastname = '';
 
+        $admissionno = isset($params['admissionno']) ? trim((string)$params['admissionno']) : (isset($params['admission_no']) ? trim((string)$params['admission_no']) : (isset($params['admission_number']) ? trim((string)$params['admission_number']) : ''));
+
         $student_data = [
             'firstname' => $firstname,
             'lastname' => $lastname,
+            'admission_no' => $admissionno,
             'dob' => isset($params['dob']) ? $params['dob'] : '',
             'mobileno' => isset($params['phone_number']) ? $params['phone_number'] : (isset($params['mobileno']) ? $params['mobileno'] : (isset($params['mobile_number']) ? $params['mobile_number'] : (isset($params['phone']) ? $params['phone'] : ''))),
             'current_address' => isset($params['address']) ? $params['address'] : '',
@@ -304,7 +307,11 @@ class Studentdetails extends CI_Controller
                 'section_id' => $section_row->id,
                 'session_id' => $this->setting_model->getCurrentSession()
             ]);
-            $this->_success('Student registered successfully', ['student_id' => $insert_id], 201);
+            $this->_success('Student registered successfully', [
+                'student_id'   => $insert_id,
+                'admission_no' => $admissionno,
+                'admissionno'  => $admissionno
+            ], 201);
         } else {
             $this->_error('Failed to register student', 500);
         }

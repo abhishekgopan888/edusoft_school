@@ -726,9 +726,12 @@ class Studentdetails extends Base
             $lastname = '';
         }
 
+        $admissionno = isset($params['admissionno']) ? trim((string)$params['admissionno']) : (isset($params['admission_no']) ? trim((string)$params['admission_no']) : (isset($params['admission_number']) ? trim((string)$params['admission_number']) : ''));
+
         $student_data = [
             'firstname' => $firstname,
             'lastname' => $lastname,
+            'admission_no' => $admissionno,
             'dob' => $dob,
             'mobileno' => $phone_number,
             'current_address' => $address,
@@ -752,7 +755,11 @@ class Studentdetails extends Base
             ];
             $this->db->insert('student_session', $session_data);
 
-            $this->_success('Student registered successfully', ['student_id' => $insert_id], 201);
+            $this->_success('Student registered successfully', [
+                'student_id'   => $insert_id,
+                'admission_no' => $admissionno,
+                'admissionno'  => $admissionno
+            ], 201);
         } else {
             $this->_error('Failed to register student', 500);
         }

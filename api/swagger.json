@@ -2269,6 +2269,16 @@
                                         "type": "string",
                                         "example": "Sophia Carter"
                                     },
+                                    "admissionno": {
+                                        "type": "string",
+                                        "example": "8753",
+                                        "description": "Student admission number (alias: admission_no)"
+                                    },
+                                    "admission_no": {
+                                        "type": "string",
+                                        "example": "8753",
+                                        "description": "Student admission number"
+                                    },
                                     "student_class": {
                                         "type": "string",
                                         "example": "10"
@@ -2285,6 +2295,12 @@
                                         "type": "string",
                                         "format": "date",
                                         "example": "2008-04-12"
+                                    },
+                                    "admission_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-25",
+                                        "description": "Date of admission"
                                     },
                                     "phone_number": {
                                         "type": "string",

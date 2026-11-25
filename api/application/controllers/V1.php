@@ -43,11 +43,23 @@ class V1 extends CI_Controller
         $guardian_name = isset($params['guardian_name']) ? $params['guardian_name'] : '';
         $guardian_phone = isset($params['guardian_phone']) ? $params['guardian_phone'] : '';
         $link = isset($params['link']) ? $params['link'] : '';
+        $admissionno = isset($params['admissionno']) ? trim((string)$params['admissionno']) : (isset($params['admission_no']) ? trim((string)$params['admission_no']) : (isset($params['admission_number']) ? trim((string)$params['admission_number']) : ''));
+        $admission_date = isset($params['admission_date']) ? $params['admission_date'] : (isset($params['admissiondate']) ? $params['admissiondate'] : date('Y-m-d'));
 
         if(empty($name) || empty($student_class) || empty($division)) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Required fields missing']);
             return;
+        }
+
+        // Auto-generate admission_no if not provided and auto insert is enabled in school settings
+        if ($admissionno === '') {
+            $sch_setting = $this->setting_model->getSetting();
+            if (!empty($sch_setting->adm_auto_insert)) {
+                $last_student = $this->student_model->lastRecord();
+                $last_admission_digit = !empty($last_student) ? str_replace($sch_setting->adm_prefix, "", $last_student->admission_no) : 0;
+                $admissionno = $sch_setting->adm_prefix . sprintf("%0" . $sch_setting->adm_no_digit . "d", ((int)$last_admission_digit + 1));
+            }
         }
 
         // Find class_id by class name
@@ -88,6 +100,8 @@ class V1 extends CI_Controller
             'lastname' => $lastname,
             'dob' => $dob,
             'mobileno' => $phone_number,
+            'admission_no' => $admissionno,
+            'admission_date' => $admission_date,
             'current_address' => $address,
             'guardian_name' => $guardian_name,
             'guardian_phone' => $guardian_phone,
@@ -107,7 +121,13 @@ class V1 extends CI_Controller
             );
             $this->student_model->add_student_session($session_data);
 
-            echo json_encode(['status' => 'success', 'message' => 'Student registered successfully', 'student_id' => $insert_id]);
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Student registered successfully',
+                'student_id' => $insert_id,
+                'admission_no' => $admissionno,
+                'admissionno' => $admissionno
+            ]);
         } else {
             $db_error = $this->db->error();
             http_response_code(500);
