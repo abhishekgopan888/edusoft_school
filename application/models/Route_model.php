@@ -334,4 +334,14 @@ class Route_model extends MY_Model
         return $query->row_array();
     }
 
+    public function check_route_exists($title, $exclude_id = null)
+    {
+        $this->db->where('LOWER(TRIM(route_title))', strtolower(trim($title)));
+        if (!empty($exclude_id)) {
+            $this->db->where('id !=', (int)$exclude_id);
+        }
+        $query = $this->db->get('transport_route');
+        return ($query->num_rows() > 0);
+    }
+
 }

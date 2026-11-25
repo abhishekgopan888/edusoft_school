@@ -595,7 +595,9 @@ class Trip extends Base
         }
         $next_stop_name = !empty($next_stop['title']) ? $next_stop['title'] : null;
 
-        $routing_progress = $this->_calculate_routing_progress($timeline, $status, $next_stop);
+        $is_moving = ($bus_speed !== null && (float)$bus_speed >= 3.0);
+
+        $routing_progress = $this->_calculate_routing_progress($timeline, $status, $next_stop, $is_moving);
 
         return [
             'trip_id'                  => $resolved_trip_id,
@@ -604,6 +606,7 @@ class Trip extends Base
             'driver_id'                => $driver_id,
             'trip_type'                => $trip_type,
             'status'                   => $status,
+            'is_moving'                => (bool)$is_moving,
             'start_time'               => $start_time,
             'next_stop'                => $next_stop,
             'next_stop_name'           => $next_stop_name,
@@ -712,30 +715,121 @@ class Trip extends Base
             ];
         }
 
-        // Determine live progression index
-        $in_progress_idx = 0;
-        if ($trip_status === 'started' && !empty($bus_lat) && !empty($bus_lng) && $total_points > 1) {
-            $closest_idx = 0;
-            $min_dist = PHP_FLOAT_MAX;
+        // Determine movement status
+        $is_moving = ($bus_speed !== null && (float)$bus_speed >= 3.0);
+        $geofence_km = 0.35; // 350 meters stop arrival geofence
 
+        // Distances from current bus position to all stops
+        $dists_from_bus = [];
+        $valid_bus_coords = (!empty($bus_lat) && !empty($bus_lng) && ((float)$bus_lat != 0.0 || (float)$bus_lng != 0.0));
+        if ($valid_bus_coords) {
             foreach ($parsed_points as $i => $p) {
                 if ($p['latitude'] != 0.0 && $p['longitude'] != 0.0) {
-                    $dist = $this->_calculate_distance_km($bus_lat, $bus_lng, $p['latitude'], $p['longitude']);
-                    if ($dist < $min_dist) {
-                        $min_dist = $dist;
-                        $closest_idx = $i;
+                    $dists_from_bus[$i] = $this->_calculate_distance_km((float)$bus_lat, (float)$bus_lng, $p['latitude'], $p['longitude']);
+                } else {
+                    $dists_from_bus[$i] = PHP_FLOAT_MAX;
+                }
+            }
+        }
+
+        $min_dist_to_route = !empty($dists_from_bus) ? min($dists_from_bus) : PHP_FLOAT_MAX;
+        $bus_is_nearby = ($min_dist_to_route <= 5.0); // Within 5 km of route
+
+        // Find which stops have been reached during this trip
+        $visited_stop_times = [];
+        if (!empty($trip_id) && $this->db->table_exists('bus_locations')) {
+            $history_points = $this->db->select('latitude, longitude, recorded_at')
+                ->from('bus_locations')
+                ->where('trip_id', $trip_id)
+                ->order_by('id', 'ASC')
+                ->get()
+                ->result_array();
+
+            foreach ($history_points as $hp) {
+                $h_lat = (float)$hp['latitude'];
+                $h_lng = (float)$hp['longitude'];
+                if ($h_lat == 0.0 || $h_lng == 0.0) continue;
+
+                foreach ($parsed_points as $idx => $p) {
+                    if ($p['latitude'] != 0.0 && $p['longitude'] != 0.0 && !isset($visited_stop_times[$idx])) {
+                        $h_dist = $this->_calculate_distance_km($h_lat, $h_lng, $p['latitude'], $p['longitude']);
+                        if ($h_dist <= $geofence_km) {
+                            $visited_stop_times[$idx] = $hp['recorded_at'];
+                        }
                     }
                 }
             }
+        }
 
-            // If bus is closest to start stop (idx 0) but has already started and moved away (> 0.3 km), advance to stop 1
-            if ($closest_idx === 0 && $min_dist > 0.3) {
-                $in_progress_idx = 1;
-            } else {
-                $in_progress_idx = $closest_idx;
+        // Current location geofence check
+        if ($valid_bus_coords) {
+            foreach ($parsed_points as $idx => $p) {
+                if (isset($dists_from_bus[$idx]) && $dists_from_bus[$idx] <= $geofence_km && !isset($visited_stop_times[$idx])) {
+                    $visited_stop_times[$idx] = !empty($recorded_at) ? $recorded_at : date('Y-m-d H:i:s');
+                }
             }
-        } elseif ($trip_status === 'started' && $total_points > 1) {
-            $in_progress_idx = 1;
+        }
+
+        // Determine sequential progression
+        $completed_map = [];
+        $in_progress_idx = 0;
+
+        if ($trip_status === 'completed') {
+            foreach ($parsed_points as $i => $p) {
+                $completed_map[$i] = true;
+            }
+            $in_progress_idx = $total_points - 1;
+        } elseif ($trip_status === 'started' && $valid_bus_coords && $bus_is_nearby && $total_points > 1) {
+            for ($i = 0; $i < $total_points; $i++) {
+                if ($i === 0) {
+                    $at_stop_0 = (isset($dists_from_bus[0]) && $dists_from_bus[0] <= $geofence_km);
+                    if ($at_stop_0 && !$is_moving) {
+                        // Bus is stationary at start stop -> cannot be completed, stays in_progress
+                        $in_progress_idx = 0;
+                        break;
+                    } elseif (!$at_stop_0 && (isset($dists_from_bus[1]) && isset($dists_from_bus[0]) && $dists_from_bus[1] < $dists_from_bus[0] || !empty($visited_stop_times[1]))) {
+                        // Bus has moved away from stop 0 towards stop 1
+                        $completed_map[0] = true;
+                        $in_progress_idx = 1;
+                    } elseif (!$at_stop_0 && $is_moving && isset($dists_from_bus[0]) && $dists_from_bus[0] > $geofence_km) {
+                        $completed_map[0] = true;
+                        $in_progress_idx = 1;
+                    } else {
+                        $in_progress_idx = 0;
+                        break;
+                    }
+                } else {
+                    $has_reached_i = !empty($visited_stop_times[$i]) || (isset($dists_from_bus[$i]) && $dists_from_bus[$i] <= $geofence_km);
+                    if (!$has_reached_i) {
+                        $in_progress_idx = $i;
+                        break;
+                    }
+
+                    $at_stop_i = (isset($dists_from_bus[$i]) && $dists_from_bus[$i] <= $geofence_km);
+                    if ($at_stop_i && !$is_moving) {
+                        // Bus is stationary at stop i -> stays in_progress, cannot advance
+                        $in_progress_idx = $i;
+                        break;
+                    }
+
+                    if ($i === $total_points - 1) {
+                        $in_progress_idx = $i;
+                        break;
+                    }
+
+                    // Check departure towards stop i+1
+                    if ((isset($dists_from_bus[$i + 1]) && isset($dists_from_bus[$i]) && $dists_from_bus[$i + 1] < $dists_from_bus[$i]) || !empty($visited_stop_times[$i + 1])) {
+                        $completed_map[$i] = true;
+                        $in_progress_idx = $i + 1;
+                    } else {
+                        $in_progress_idx = $i;
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Bus is outside route boundary or stationary prior to start -> Stop 0 is in_progress, 0 stops completed
+            $in_progress_idx = 0;
         }
 
         // Setup base time for ETA calculation
@@ -752,15 +846,6 @@ class Trip extends Base
             ? (float)$bus_speed
             : 25.0;
 
-        // Check if bus GPS is in the general vicinity of the route (within 100km)
-        $bus_is_nearby = false;
-        if (!empty($bus_lat) && !empty($bus_lng) && !empty($parsed_points[0]['latitude'])) {
-            $dist_to_route = $this->_calculate_distance_km($bus_lat, $bus_lng, $parsed_points[0]['latitude'], $parsed_points[0]['longitude']);
-            if ($dist_to_route <= 100.0) {
-                $bus_is_nearby = true;
-            }
-        }
-
         $timeline = [];
         $cumulative_road_km = 0.0;
         $cumulative_minutes = 0;
@@ -771,20 +856,16 @@ class Trip extends Base
 
             if ($trip_status === 'completed') {
                 $status = 'completed';
-                $actual_time = $p['sched_time'];
-            } elseif ($trip_status === 'started') {
-                if ($i < $in_progress_idx) {
-                    $status = 'completed';
-                    $actual_time = !empty($p['sched_time']) 
-                        ? date('h:i A', strtotime($p['sched_time']) + 120) 
-                        : (!empty($start_time) ? date('h:i A', strtotime($start_time) + ($i * 900) + 120) : null);
-                } elseif ($i === $in_progress_idx) {
-                    $status = 'in_progress';
-                    $actual_time = null;
-                } else {
-                    $status = 'upcoming';
-                    $actual_time = null;
-                }
+                $actual_time = !empty($visited_stop_times[$i]) ? date('h:i A', strtotime($visited_stop_times[$i])) : $p['sched_time'];
+            } elseif (!empty($completed_map[$i])) {
+                $status = 'completed';
+                $actual_time = !empty($visited_stop_times[$i]) ? date('h:i A', strtotime($visited_stop_times[$i])) : $p['sched_time'];
+            } elseif ($i === $in_progress_idx) {
+                $status = 'in_progress';
+                $actual_time = null;
+            } else {
+                $status = 'upcoming';
+                $actual_time = null;
             }
 
             // Calculate distance & estimated time to reach
@@ -803,31 +884,46 @@ class Trip extends Base
                 $eta_mins = 0;
                 $eta_clock = !empty($actual_time) ? $actual_time : $p['sched_time'];
             } elseif ($status === 'in_progress') {
-                if ($bus_is_nearby && !empty($p['latitude']) && !empty($p['longitude'])) {
-                    $direct_dist = $this->_calculate_distance_km($bus_lat, $bus_lng, $p['latitude'], $p['longitude']);
-                    $leg_road_km = round($direct_dist * 1.25, 2);
-                } elseif ($i > 0 && !empty($parsed_points[$i - 1]['latitude']) && !empty($p['latitude'])) {
-                    $leg_dist = $this->_calculate_distance_km(
-                        $parsed_points[$i - 1]['latitude'],
-                        $parsed_points[$i - 1]['longitude'],
-                        $p['latitude'],
-                        $p['longitude']
-                    );
-                    $leg_road_km = round($leg_dist * 1.25, 2);
+                $at_this_stop = (isset($dists_from_bus[$i]) && $dists_from_bus[$i] <= $geofence_km);
+
+                if ($at_this_stop) {
+                    $dist_km = 0.0;
+                    $dist_m = 0;
+                    $dist_txt = '0 m';
+                    $time_reach = $is_moving ? 'Departing' : 'At Stop';
+                    $eta_mins = 0;
+                    $eta_clock = !empty($p['sched_time']) ? $p['sched_time'] : date('h:i A', $base_time);
+                    $cumulative_road_km = 0.0;
+                    $cumulative_minutes = 0;
                 } else {
-                    $leg_road_km = 2.5;
+                    if ($bus_is_nearby && isset($dists_from_bus[$i])) {
+                        $direct_dist = $dists_from_bus[$i];
+                        $leg_road_km = round($direct_dist * 1.25, 2);
+                    } elseif ($i > 0 && !empty($parsed_points[$i - 1]['latitude']) && !empty($p['latitude'])) {
+                        $leg_dist = $this->_calculate_distance_km(
+                            $parsed_points[$i - 1]['latitude'],
+                            $parsed_points[$i - 1]['longitude'],
+                            $p['latitude'],
+                            $p['longitude']
+                        );
+                        $leg_road_km = round($leg_dist * 1.25, 2);
+                    } else {
+                        $leg_road_km = 2.5;
+                    }
+
+                    $leg_mins = $is_moving 
+                        ? max(1, (int)round(($leg_road_km / $effective_speed) * 60))
+                        : max(2, (int)round(($leg_road_km / 20.0) * 60));
+                    $cumulative_road_km = $leg_road_km;
+                    $cumulative_minutes = $leg_mins;
+
+                    $dist_km = round($cumulative_road_km, 2);
+                    $dist_m = (int)round($dist_km * 1000);
+                    $dist_txt = ($dist_km < 1.0) ? ($dist_m . ' m') : ($dist_km . ' km');
+                    $eta_mins = $cumulative_minutes;
+                    $time_reach = $eta_mins . ' ' . ($eta_mins === 1 ? 'min' : 'mins');
+                    $eta_clock = date('h:i A', $base_time + ($cumulative_minutes * 60));
                 }
-
-                $leg_mins = max(1, (int)round(($leg_road_km / $effective_speed) * 60));
-                $cumulative_road_km = $leg_road_km;
-                $cumulative_minutes = $leg_mins;
-
-                $dist_km = round($cumulative_road_km, 2);
-                $dist_m = (int)round($dist_km * 1000);
-                $dist_txt = ($dist_km < 1.0) ? ($dist_m . ' m') : ($dist_km . ' km');
-                $eta_mins = $cumulative_minutes;
-                $time_reach = $eta_mins . ' ' . ($eta_mins === 1 ? 'min' : 'mins');
-                $eta_clock = date('h:i A', $base_time + ($cumulative_minutes * 60));
             } else { // upcoming
                 if ($i > 0 && !empty($parsed_points[$i - 1]['latitude']) && !empty($p['latitude'])) {
                     $leg_dist = $this->_calculate_distance_km(
@@ -902,7 +998,7 @@ class Trip extends Base
     /**
      * Calculates overall routing progress metrics and next stop ETA
      */
-    private function _calculate_routing_progress($timeline, $trip_status = 'started', $next_stop = null)
+    private function _calculate_routing_progress($timeline, $trip_status = 'started', $next_stop = null, $is_moving = false)
     {
         $total_stops = count($timeline);
         $completed_stops = 0;
@@ -923,6 +1019,7 @@ class Trip extends Base
         if ($total_stops === 0) {
             return [
                 'status'                     => $trip_status,
+                'is_moving'                  => (bool)$is_moving,
                 'progress_percentage'        => 0,
                 'total_stops'                => 0,
                 'completed_stops'            => 0,
@@ -944,11 +1041,10 @@ class Trip extends Base
             $pct = 100;
             $completed_stops = $total_stops;
             $remaining_stops = 0;
-        } elseif ($total_stops > 0) {
+        } elseif ($completed_stops > 0 && $total_stops > 0) {
             $pct = min(99, (int)round(($completed_stops / $total_stops) * 100));
-            if ($pct === 0 && $completed_stops > 0) {
-                $pct = (int)round(($completed_stops / $total_stops) * 100);
-            }
+        } else {
+            $pct = 0;
         }
 
         $next_id    = !empty($next_stop['stop_id']) ? $next_stop['stop_id'] : null;
@@ -962,6 +1058,7 @@ class Trip extends Base
 
         return [
             'status'                     => $trip_status,
+            'is_moving'                  => (bool)$is_moving,
             'progress_percentage'        => (int)$pct,
             'total_stops'                => (int)$total_stops,
             'completed_stops'            => (int)$completed_stops,

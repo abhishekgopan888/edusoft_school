@@ -134,21 +134,29 @@ $route['api/pickuppoint/by_route/(:num)'] = 'pickuppoint/by_route/$1';
 // Routes API (Get routes corresponding to bus ID)
 $route['routes'] = 'routes/index';
 $route['routes/timeline'] = 'routes/timeline';
+$route['routes/students'] = 'routes/students';
+$route['routes/history'] = 'routes/history';
 $route['routes/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['routes/details'] = 'routes/details';
 
 $route['api/routes'] = 'routes/index';
 $route['api/routes/timeline'] = 'routes/timeline';
+$route['api/routes/students'] = 'routes/students';
+$route['api/routes/history'] = 'routes/history';
 $route['api/routes/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['api/routes/details'] = 'routes/details';
 
 $route['route'] = 'routes/index';
 $route['route/timeline'] = 'routes/timeline';
+$route['route/students'] = 'routes/students';
+$route['route/history'] = 'routes/history';
 $route['route/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['route/details'] = 'routes/details';
 
 $route['api/route'] = 'routes/index';
 $route['api/route/timeline'] = 'routes/timeline';
+$route['api/route/students'] = 'routes/students';
+$route['api/route/history'] = 'routes/history';
 $route['api/route/by_bus/(:num)'] = 'routes/by_bus/$1';
 $route['api/route/details'] = 'routes/details';
 

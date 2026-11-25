@@ -36,7 +36,7 @@ class Route extends Admin_Controller
             access_denied();
         }
         $data['title'] = 'Add Route';
-        $this->form_validation->set_rules('route_title', $this->lang->line('route_title'), 'trim|required|xss_clean');
+        $this->form_validation->set_rules('route_title', $this->lang->line('route_title'), 'trim|required|xss_clean|callback_check_route_exists');
         if ($this->form_validation->run() == false) {
             $listroute                  = $this->route_model->listroute();
             $data['listroute']          = $listroute;
@@ -199,7 +199,7 @@ class Route extends Admin_Controller
         $data['selected_pickup_points'] = $selected_pickup_points;
         $data['pickup_point_list']      = $this->route_model->listpickup_point();
 
-        $this->form_validation->set_rules('route_title', $this->lang->line('route_title'), 'trim|required|xss_clean');
+        $this->form_validation->set_rules('route_title', $this->lang->line('route_title'), 'trim|required|xss_clean|callback_check_route_exists[' . $id . ']');
         if ($this->form_validation->run() == false) {
             $listroute                  = $this->route_model->listroute();
             $data['listroute']          = $listroute;
@@ -355,6 +355,18 @@ class Route extends Admin_Controller
         $this->load->view('layout/header');
         $this->load->view('admin/route/pickup_point', $data);
         $this->load->view('layout/footer');
+    }
+
+    public function check_route_exists($title, $id = null)
+    {
+        if (empty($id)) {
+            $id = $this->input->post('id');
+        }
+        if ($this->route_model->check_route_exists($title, $id)) {
+            $this->form_validation->set_message('check_route_exists', 'The %s already exists. Please choose a unique route name.');
+            return false;
+        }
+        return true;
     }
 
 }
