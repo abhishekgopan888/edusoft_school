@@ -121,19 +121,13 @@ if ($this->rbac->hasPrivilege('subject_group', 'can_add')) {
                     <div class="box-body">
                         <div class="download_label"><?php echo $this->lang->line('subject_group_list'); ?></div>
                         <div class="table-responsive mailbox-messages" id="subject_list">
-                        <div class='d-flex gap-0-5 text-right float-right'>
-
-                            <a class="btn btn-default btn-xs pull-right" title="<?php echo $this->lang->line('print'); ?>"  id="print" onclick="printDiv()" ><i class="fa fa-print"></i></a> 
-                            <a class="btn btn-default btn-xs pull-right" title="<?php echo $this->lang->line('export'); ?>"  id="btnExport" onclick="fnExcelReport();"> <i class="fa fa-file-excel-o"></i> </a>
-                        </div>
-                            
-                            <table class="table table-striped  table-hover " id="headerTable">
+                            <table class="table table-striped table-bordered table-hover example" data-export-title="<?php echo $this->lang->line('subject_group_list');?>">
                                 <thead>
                                     <tr>
                                         <th><?php echo $this->lang->line('name'); ?></th>
                                         <th><?php echo $this->lang->line('class_section'); ?></th>
                                         <th><?php echo $this->lang->line('subject'); ?></th>
-                                        <th class="text-right no_print"><?php echo $this->lang->line('action'); ?></th>
+                                        <th class="text-right no-print noExport"><?php echo $this->lang->line('action'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -184,7 +178,7 @@ foreach ($subjectgroup->group_subject as $group_subject_key => $group_subject_va
     }
     ?>
                                             </td>
-                                            <td class="mailbox-date pull-right no_print">
+                                            <td class="mailbox-date text-right no-print noExport">
 
                                                 <?php
 if ($this->rbac->hasPrivilege('subject_group', 'can_edit')) {
@@ -309,52 +303,5 @@ function getSelectedSubjects($subjectgroup, $find)
                 }
             });
         }
-    }
-   
-    function printDiv() {
-        $(".no_print").css("display", "none");
-        document.getElementById("print").style.display = "none";
-        document.getElementById("btnExport").style.display = "none";
-        var divElements = document.getElementById('subject_list').innerHTML;
-        var oldPage = document.body.innerHTML;
-        document.body.innerHTML =
-                "<html><head><title></title></head><body>" +
-                divElements + "</body>";
-        window.print();
-        document.body.innerHTML = oldPage;
-        location.reload(true);
-    }
-
-    function fnExcelReport()
-    {
-        var tab_text = "<table border='2px'><tr >";
-        var textRange;
-        var j = 0;
-        tab = document.getElementById('headerTable'); // id of table
-
-        for (j = 0; j < tab.rows.length; j++)
-        {
-            tab_text = tab_text + tab.rows[j].innerHTML + "</tr>";
-        }
-
-        tab_text = tab_text + "</table>";
-        tab_text = tab_text.replace(/<A[^>]*>|<\/A>/g, "");//remove if u want links in your table
-        tab_text = tab_text.replace(/<img[^>]*>/gi, ""); // remove if u want images in your table
-        tab_text = tab_text.replace(/<input[^>]*>|<\/input>/gi, ""); // reomves input params
-
-        var ua = window.navigator.userAgent;
-        var msie = ua.indexOf("MSIE ");
-
-        if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./))      // If Internet Explorer
-        {
-            txtArea1.document.open("txt/html", "replace");
-            txtArea1.document.write(tab_text);
-            txtArea1.document.close();
-            txtArea1.focus();
-            sa = txtArea1.document.execCommand("SaveAs", true, "Say Thanks to Sumit.xls");
-        } else                 //other browser not tested on IE 11
-            sa = window.open('data:application/vnd.ms-excel,' + encodeURIComponent(tab_text));
-
-        return (sa);
     }
 </script>

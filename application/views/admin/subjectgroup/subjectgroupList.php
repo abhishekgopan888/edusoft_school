@@ -119,19 +119,13 @@ if ($this->rbac->hasPrivilege('subject_group', 'can_add')) {
                     <div class="box-body">
                         <div class="table-responsive mailbox-messages"> 
                             <div class="download_label"><?php echo $this->lang->line('subject_group_list'); ?></div>
-<div class='d-flex gap-0-5 text-right float-right'>
-
-                            <a class="btn btn-primary btn-xs pull-right" title="<?php echo $this->lang->line('print'); ?>" id="print" onclick="printDiv()" ><i class="fa fa-print"></i></a> 
-                            <a class="btn btn-primary btn-xs pull-right" title="<?php echo $this->lang->line('export'); ?>"  id="btnExport" onclick="fnExcelReport();"> <i class="fa fa-file-excel-o"></i> </a>
-                        </div>
-                            
-                            <table class="table table-striped  table-hover " id="headerTable">
+                            <table class="table table-striped table-bordered table-hover example" data-export-title="<?php echo $this->lang->line('subject_group_list');?>">
                                 <thead>
                                     <tr>
                                         <th><?php echo $this->lang->line('name'); ?></th>
                                         <th class="text-left"><?php echo $this->lang->line('class_section'); ?></th>
                                         <th><?php echo $this->lang->line('subject'); ?></th>
-                                        <th class="text-right no_print"><?php echo $this->lang->line('action'); ?></th>
+                                        <th class="text-right no-print noExport"><?php echo $this->lang->line('action'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -167,32 +161,25 @@ if ($subjectgroup->description == "") {
     ?>
                                                 </div>
                                             </td>
-                                            <td  class="text-left">
-                                                <ol>
-
-                                                    <?php foreach ($subjectgroup->sections as $group_section_key => $group_section_value) {?>
-                                                         <?php echo "<li>" . $group_section_value->class . "(" . $group_section_value->section . ") </li>"; ?>
-
-                                                        <?php
+                                            <td class="text-left">
+                                                <?php
+if (!empty($subjectgroup->sections)) {
+    foreach ($subjectgroup->sections as $group_section_value) {
+        echo "<div>" . $group_section_value->class . " (" . $group_section_value->section . ")</div>";
+    }
 }
-    ?>
-                                                </ol>
+?>
                                             </td>
                                             <td>
-                                                <table width="100%">
-                                                    <?php
-foreach ($subjectgroup->group_subject as $group_subject_key => $group_subject_value) {
-        ?>
-                                                        <tr><td>
-                                                                <?php echo "<div>" . $group_subject_value->name . "</div>"; ?>
-                                                            </td></tr>
-
-                                                        <?php
+                                                <?php
+if (!empty($subjectgroup->group_subject)) {
+    foreach ($subjectgroup->group_subject as $group_subject_value) {
+        echo "<div>" . $group_subject_value->name . "</div>";
+    }
 }
-    ?>
-                                                </table>
+?>
                                             </td>
-                                            <td class="mailbox-date pull-right no_print">
+                                            <td class="mailbox-date text-right no-print noExport">
                                                 <?php
 if ($this->rbac->hasPrivilege('subject_group', 'can_edit')) {
         ?>
@@ -203,8 +190,8 @@ if ($this->rbac->hasPrivilege('subject_group', 'can_edit')) {
                                                 <?php
 if ($this->rbac->hasPrivilege('subject_group', 'can_delete')) {
         ?>
-                                                    <a  href="<?php echo base_url(); ?>admin/subjectgroup/delete/<?php echo $subjectgroup->id; ?>"class="btn btn-primary btn-xs no_print displayinline" data-toggle="tooltip" title="<?php echo $this->lang->line('delete'); ?>" onclick="return confirm('<?php echo $this->lang->line('delete_confirm') ?>');">
-                                                        <i  class="fa fa-remove"></i>
+                                                    <a href="<?php echo base_url(); ?>admin/subjectgroup/delete/<?php echo $subjectgroup->id; ?>" class="btn btn-primary btn-xs no_print displayinline" data-toggle="tooltip" title="<?php echo $this->lang->line('delete'); ?>" onclick="return confirm('<?php echo $this->lang->line('delete_confirm') ?>');">
+                                                        <i class="fa fa-remove"></i>
                                                     </a>
                                                 <?php }?>
                                             </td>
@@ -299,22 +286,4 @@ if ($this->rbac->hasPrivilege('subject_group', 'can_delete')) {
             });
         }
     }
-  
-
-    function printDiv() {
-        $(".no_print").css("display", "none");
-        document.getElementById("print").style.display = "none";
-        document.getElementById("btnExport").style.display = "none";
-        var divElements = document.getElementById('subject_list').innerHTML;
-        var oldPage = document.body.innerHTML;
-        document.body.innerHTML =
-                "<html><head><title></title></head><body>" +
-                divElements + "</body>";
-        window.print();
-        document.body.innerHTML = oldPage;
-        location.reload(true);
-    }
-
-  
-
 </script>
