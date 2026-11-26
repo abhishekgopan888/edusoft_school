@@ -20,7 +20,7 @@ class Boardingpoint extends CI_Controller
         $this->load->model('boardingpoint_model');
     }
 
-    private function _check_auth()
+    private function _check_auth($require_auth = true)
     {
         $api_key = $this->input->get_request_header('X-API-Key', true);
         if (empty($api_key)) {
@@ -48,6 +48,9 @@ class Boardingpoint extends CI_Controller
                 return true;
             }
         }
+        if (!$require_auth) {
+            return true;
+        }
         $this->output->set_status_header(401)->set_content_type('application/json')
             ->set_output(json_encode(['status' => 'error', 'message' => 'Unauthorized - Invalid or missing X-API-Key']));
         exit;
@@ -71,9 +74,12 @@ class Boardingpoint extends CI_Controller
 
     public function index()
     {
-        $this->_check_auth();
+        $this->_check_auth(false);
+
+        $route_id = $this->input->get('route_id') ?? $this->input->get('routeid');
 
         $filters = array_filter([
+            'route_id'   => $route_id,
             'status'     => $this->input->get('status'),
             'busid'      => $this->input->get('busid'),
             'attenderid' => $this->input->get('attenderid'),
@@ -88,7 +94,7 @@ class Boardingpoint extends CI_Controller
 
     public function details()
     {
-        $this->_check_auth();
+        $this->_check_auth(false);
         $id = $this->input->get('id');
         if (empty($id)) {
             $this->_error('Boarding record ID is required', 400);

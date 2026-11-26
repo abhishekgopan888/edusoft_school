@@ -397,8 +397,8 @@
         },
         "/boardingpoint": {
             "get": {
-                "summary": "Get all boarding records with filters",
-                "description": "Retrieves list of student bus boarding records with student name, grade, address, vehicle, and attender details. Supports filtering by status, busid, attenderid, studentid, date, and keyword search.",
+                "summary": "Get all route-based boarding records with filters",
+                "description": "Retrieves list of student bus boarding records with route, stop, student name, grade, address, vehicle, and attender details. Supports filtering by route_id, status, busid, attenderid, studentid, date, and keyword search.",
                 "tags": [
                     "Boarding Point Tracking"
                 ],
@@ -411,6 +411,16 @@
                     }
                 },
                 "parameters": [
+                    {
+                        "name": "route_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by Route ID",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
                     {
                         "name": "status",
                         "in": "query",
@@ -1512,6 +1522,16 @@
                         "schema": {
                             "type": "integer",
                             "example": 2
+                        }
+                    },
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter history by Student ID (e.g. 825)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 825
                         }
                     },
                     {

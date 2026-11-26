@@ -1,172 +1,17 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
-require_once APPPATH . 'controllers/api/Base.php';
-
-class Boardingpoint extends Base
+/**
+ * Boardingpoint API Controller
+ * Secret Keys: attender-api-secret-key-2026, MgMgOQNwNg, system-admin-api-key-2026
+ */
+class Boardingpoint extends CI_Controller
 {
-    public $swagger_meta = [
-        'tag' => 'Boarding Point Tracking',
-        'description' => 'Endpoints for managing student bus boarding records with student details, grade, address, search, and filtering.',
-        'methods' => [
-            'index' => [
-                'path' => '/api/boardingpoint',
-                'summary' => 'Get all boarding records with filters',
-                'description' => 'Retrieves list of student bus boarding records with student name, grade, address, vehicle, and attender details. Supports filtering by status, busid, attenderid, studentid, date, and keyword search.',
-                'http_method' => 'get',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
-                'parameters' => [
-                    [
-                        'name' => 'status',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter by status (pending, boarded, deboarded, dropped)',
-                        'schema' => ['type' => 'string', 'enum' => ['pending', 'boarded', 'deboarded', 'dropped'], 'example' => 'boarded']
-                    ],
-                    [
-                        'name' => 'busid',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter by Bus/Vehicle ID',
-                        'schema' => ['type' => 'integer', 'example' => 5]
-                    ],
-                    [
-                        'name' => 'attenderid',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter by Attender ID',
-                        'schema' => ['type' => 'integer', 'example' => 2]
-                    ],
-                    [
-                        'name' => 'studentid',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter by Student ID',
-                        'schema' => ['type' => 'integer', 'example' => 101]
-                    ],
-                    [
-                        'name' => 'date',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter by record date (YYYY-MM-DD)',
-                        'schema' => ['type' => 'string', 'format' => 'date', 'example' => '2026-08-06']
-                    ],
-                    [
-                        'name' => 'search',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Search by student name, admission no, roll no, grade, vehicle no, attender name, or address',
-                        'schema' => ['type' => 'string', 'example' => 'John']
-                    ]
-                ],
-                'responses' => [
-                    '200' => ['description' => 'Boarding records retrieved successfully'],
-                    '401' => ['description' => 'Unauthorized']
-                ]
-            ],
-            'details' => [
-                'path' => '/api/boardingpoint/details',
-                'summary' => 'Get single boarding record details',
-                'description' => 'Retrieves details of a specific boarding record by ID including student info, grade, and address.',
-                'http_method' => 'get',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
-                'parameters' => [
-                    [
-                        'name' => 'id',
-                        'in' => 'query',
-                        'required' => true,
-                        'description' => 'Boarding record ID',
-                        'schema' => ['type' => 'integer', 'example' => 1]
-                    ]
-                ],
-                'responses' => [
-                    '200' => ['description' => 'Record details retrieved successfully'],
-                    '404' => ['description' => 'Record not found'],
-                    '401' => ['description' => 'Unauthorized']
-                ]
-            ],
-            'add' => [
-                'path' => '/api/boardingpoint/add',
-                'summary' => 'Add new boarding entry',
-                'description' => 'Creates a new boarding entry for a student with status (pending, boarded, deboarded, dropped). Bus ID is optional (defaults to student\'s assigned bus or 0 if unassigned).',
-                'http_method' => 'post',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
-                'requestBody' => [
-                    'required' => true,
-                    'content' => [
-                        'application/json' => [
-                            'schema' => [
-                                'type' => 'object',
-                                'required' => ['studentid', 'attenderid'],
-                                'properties' => [
-                                    'studentid' => ['type' => 'integer', 'example' => 816, 'description' => 'Student ID'],
-                                    'busid' => ['type' => 'integer', 'nullable' => true, 'example' => 0, 'description' => 'Bus ID (optional/nullable, defaults to student\'s assigned bus or 0 if unassigned)'],
-                                    'attenderid' => ['type' => 'integer', 'example' => 5, 'description' => 'Attender ID'],
-                                    'status' => ['type' => 'string', 'enum' => ['pending', 'boarded', 'deboarded', 'dropped'], 'example' => 'boarded', 'description' => 'Boarding status']
-                                ]
-                            ]
-                        ]
-                    ]
-                ],
-                'responses' => [
-                    '201' => ['description' => 'Boarding record created successfully'],
-                    '400' => ['description' => 'Required fields missing: studentid, attenderid or invalid status'],
-                    '401' => ['description' => 'Unauthorized']
-                ]
-            ],
-            'update_status' => [
-                'path' => '/api/boardingpoint/update_status',
-                'summary' => 'Update student boarding status',
-                'description' => 'Updates the status (pending, boarded, deboarded, dropped) of a boarding record by ID or studentid.',
-                'http_method' => 'post',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
-                'requestBody' => [
-                    'required' => true,
-                    'content' => [
-                        'application/json' => [
-                            'schema' => [
-                                'type' => 'object',
-                                'required' => ['status'],
-                                'properties' => [
-                                    'id' => ['type' => 'integer', 'example' => 1, 'description' => 'Boarding record ID'],
-                                    'studentid' => ['type' => 'integer', 'example' => 101, 'description' => 'Student ID (if ID is not provided)'],
-                                    'busid' => ['type' => 'integer', 'nullable' => true, 'example' => 5, 'description' => 'Bus ID (optional/nullable)'],
-                                    'attenderid' => ['type' => 'integer', 'example' => 2, 'description' => 'Attender ID (optional)'],
-                                    'status' => ['type' => 'string', 'enum' => ['pending', 'boarded', 'deboarded', 'dropped'], 'example' => 'boarded', 'description' => 'New status value (pending, boarded, deboarded, dropped)']
-                                ]
-                            ]
-                        ]
-                    ]
-                ],
-                'responses' => [
-                    '200' => ['description' => 'Boarding status updated successfully'],
-                    '400' => ['description' => 'Missing required fields or parameters'],
-                    '404' => ['description' => 'Boarding record not found'],
-                    '401' => ['description' => 'Unauthorized']
-                ]
-            ],
-            'delete' => [
-                'path' => '/api/boardingpoint/delete',
-                'summary' => 'Delete boarding record',
-                'description' => 'Removes a boarding record by ID.',
-                'http_method' => 'delete',
-                'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []]],
-                'parameters' => [
-                    [
-                        'name' => 'id',
-                        'in' => 'query',
-                        'required' => true,
-                        'description' => 'Boarding record ID to delete',
-                        'schema' => ['type' => 'integer', 'example' => 1]
-                    ]
-                ],
-                'responses' => [
-                    '200' => ['description' => 'Boarding record deleted successfully'],
-                    '404' => ['description' => 'Record not found'],
-                    '401' => ['description' => 'Unauthorized']
-                ]
-            ]
-        ]
+    private $valid_keys = [
+        'attender-api-secret-key-2026',
+        'system-admin-api-key-2026',
+        'MgMgOQNwNg',
+        'OQMwOANgNg'
     ];
 
     public function __construct()
@@ -175,10 +20,66 @@ class Boardingpoint extends Base
         $this->load->model('boardingpoint_model');
     }
 
+    private function _check_auth($require_auth = true)
+    {
+        $api_key = $this->input->get_request_header('X-API-Key', true);
+        if (empty($api_key)) {
+            $api_key = $this->input->get('api_key');
+        }
+        if (empty($api_key)) {
+            $api_key = $this->input->get('X-API-Key');
+        }
+        if (empty($api_key)) {
+            $auth = $this->input->get_request_header('Authorization', true);
+            if ($auth && preg_match('/Bearer\s+(.*)$/i', $auth, $m)) {
+                $api_key = trim($m[1]);
+            }
+        }
+        if (empty($api_key) && isset($_SERVER['HTTP_X_API_KEY'])) {
+            $api_key = $_SERVER['HTTP_X_API_KEY'];
+        }
+
+        if (!empty($api_key) && in_array($api_key, $this->valid_keys)) {
+            return true;
+        }
+        if (!empty($api_key)) {
+            $session = $this->db->select('expired_at')->from('users_authentication')->where('token', $api_key)->get()->row();
+            if ($session && strtotime($session->expired_at) >= time()) {
+                return true;
+            }
+        }
+        if (!$require_auth) {
+            return true;
+        }
+        $this->output->set_status_header(401)->set_content_type('application/json')
+            ->set_output(json_encode(['status' => 'error', 'message' => 'Unauthorized - Invalid or missing X-API-Key']));
+        exit;
+    }
+
+    private function _success($message, $data = [], $code = 200)
+    {
+        $payload = ['status' => 'success', 'message' => $message];
+        if (!empty($data) || is_array($data)) {
+            $payload['data'] = $data;
+        }
+        $this->output->set_status_header($code)->set_content_type('application/json')
+            ->set_output(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function _error($message, $code = 400)
+    {
+        $this->output->set_status_header($code)->set_content_type('application/json')
+            ->set_output(json_encode(['status' => 'error', 'message' => $message]));
+    }
+
     public function index()
     {
-        $this->_check_auth();
+        $this->_check_auth(false);
+
+        $route_id = $this->input->get('route_id') ?? $this->input->get('routeid');
+
         $filters = array_filter([
+            'route_id'   => $route_id,
             'status'     => $this->input->get('status'),
             'busid'      => $this->input->get('busid'),
             'attenderid' => $this->input->get('attenderid'),
@@ -193,20 +94,20 @@ class Boardingpoint extends Base
 
     public function details()
     {
-        $this->_check_auth();
+        $this->_check_auth(false);
         $id = $this->input->get('id');
         if (empty($id)) {
-            $this->_error('ID is required', 400);
+            $this->_error('Boarding record ID is required', 400);
             return;
         }
 
         $record = $this->boardingpoint_model->get($id);
         if (!$record) {
-            $this->_error('Record not found', 404);
+            $this->_error('Boarding record not found', 404);
             return;
         }
 
-        $this->_success('Record details retrieved successfully', $record);
+        $this->_success('Boarding record details retrieved successfully', $record);
     }
 
     public function add()
@@ -342,13 +243,13 @@ class Boardingpoint extends Base
         }
 
         if (empty($id)) {
-            $this->_error('Record ID is required', 400);
+            $this->_error('Boarding record ID is required', 400);
             return;
         }
 
         $record = $this->boardingpoint_model->get($id);
         if (!$record) {
-            $this->_error('Record not found', 404);
+            $this->_error('Boarding record not found', 404);
             return;
         }
 

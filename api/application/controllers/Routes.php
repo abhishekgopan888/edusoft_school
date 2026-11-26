@@ -177,8 +177,8 @@ class Routes extends Base
             ],
             'history' => [
                 'path' => '/api/routes/history',
-                'summary' => 'Get route trip history and past telemetry',
-                'description' => 'Retrieves past transport trips for routes including start/end times, duration, driver, attender, vehicle, stops completed, student counts, and GPS summary.',
+                'summary' => 'Get student transit and day-wise timeline history for routes',
+                'description' => 'Retrieves day-wise student transit timeline history including boarding/drop times, status, vehicle, driver, attender, and stop details. Supports filtering by route_id and student_id.',
                 'http_method' => 'get',
                 'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
@@ -190,45 +190,52 @@ class Routes extends Base
                         'schema' => ['type' => 'integer', 'example' => 2]
                     ],
                     [
-                        'name' => 'bus_id',
+                        'name' => 'student_id',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter history by Bus ID or Bus Number (e.g. 12, "KL 17 Y 8989")',
+                        'description' => 'Filter history by Student ID (e.g. 825)',
+                        'schema' => ['type' => 'integer', 'example' => 825]
+                    ],
+                    [
+                        'name' => 'pickup_point_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter history by Pickup Point ID (e.g. 2)',
+                        'schema' => ['type' => 'integer', 'example' => 2]
+                    ],
+                    [
+                        'name' => 'vehicle_id',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter history by Vehicle ID or Bus Number (e.g. 12, "KL 17 Y 8989")',
                         'schema' => ['type' => 'string', 'example' => '12']
                     ],
                     [
-                        'name' => 'trip_id',
+                        'name' => 'search',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter by specific Trip ID',
-                        'schema' => ['type' => 'integer', 'example' => 1]
-                    ],
-                    [
-                        'name' => 'status',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter by trip status (completed, started, all)',
-                        'schema' => ['type' => 'string', 'enum' => ['all', 'completed', 'started'], 'example' => 'completed']
+                        'description' => 'Search student by name, admission number, or mobile',
+                        'schema' => ['type' => 'string', 'example' => 'KAILAS']
                     ],
                     [
                         'name' => 'date',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter trips on specific date (YYYY-MM-DD)',
+                        'description' => 'Filter history by date (YYYY-MM-DD)',
                         'schema' => ['type' => 'string', 'example' => '2026-11-13']
                     ],
                     [
                         'name' => 'date_from',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter trips from start date (YYYY-MM-DD)',
+                        'description' => 'Filter history from start date (YYYY-MM-DD)',
                         'schema' => ['type' => 'string', 'example' => '2026-11-01']
                     ],
                     [
                         'name' => 'date_to',
                         'in' => 'query',
                         'required' => false,
-                        'description' => 'Filter trips up to end date (YYYY-MM-DD)',
+                        'description' => 'Filter history up to end date (YYYY-MM-DD)',
                         'schema' => ['type' => 'string', 'example' => '2026-11-30']
                     ],
                     [
@@ -614,15 +621,14 @@ class Routes extends Base
         $this->_check_auth([], false);
 
         $route_id        = $this->input->get('route_id') ?? $this->input->get('routeid') ?? $this->input->get('id');
+        $student_id      = $this->input->get('student_id') ?? $this->input->get('studentid');
         $bus_id          = $this->input->get('bus_id') ?? $this->input->get('busid') ?? $this->input->get('vehicle_id');
         $bus_number      = $this->input->get('bus_number') ?? $this->input->get('bus_no') ?? $this->input->get('vehicle_no');
-        $trip_id         = $this->input->get('trip_id') ?? $this->input->get('tripid');
         $pickup_point_id = $this->input->get('pickup_point_id') ?? $this->input->get('pickuppointid');
         $search          = $this->input->get('search') ?? $this->input->get('q');
         $date            = $this->input->get('date');
         $date_from       = $this->input->get('date_from');
         $date_to         = $this->input->get('date_to');
-        $status          = $this->input->get('status');
         $limit           = min(200, max(1, (int)($this->input->get('limit') ?: 50)));
         $offset          = max(0, (int)($this->input->get('offset') ?: 0));
 
@@ -631,29 +637,45 @@ class Routes extends Base
             $bus_id = null;
         }
 
-        $filters = compact('route_id', 'bus_id', 'bus_number', 'trip_id', 'date', 'date_from', 'date_to', 'status', 'limit', 'offset');
-        $history_data = $this->_get_route_history($filters);
+        $vehicle_filter = !empty($bus_number) ? $bus_number : $bus_id;
+        $students = $this->_get_route_students($route_id, $pickup_point_id, $vehicle_filter, $search, $student_id);
 
-        // If search or route or bus is specified, also include day-wise student history
-        $students = $this->_get_route_students($route_id, $pickup_point_id, !empty($bus_number) ? $bus_number : $bus_id, $search);
-        if (!empty($students)) {
-            $st_history_result = $this->_get_student_day_wise_history(
-                $students, 
-                $route_id, 
-                !empty($bus_number) ? $bus_number : $bus_id, 
-                $pickup_point_id, 
-                $date, 
-                $date_from, 
-                $date_to, 
-                $limit, 
-                $offset
-            );
-            $history_data['total_student_history'] = $st_history_result['total_records'] ?? 0;
-            $history_data['student_history']       = $st_history_result['student_history'] ?? [];
-            $history_data['day_wise_history']      = $st_history_result['day_wise_history'] ?? [];
+        $st_history_result = $this->_get_student_day_wise_history(
+            $students,
+            $route_id,
+            $vehicle_filter,
+            $pickup_point_id,
+            $date,
+            $date_from,
+            $date_to,
+            $limit,
+            $offset
+        );
+
+        $resolved_route_id = !empty($route_id) ? (int)$route_id : null;
+        $resolved_route_title = '';
+        if (!empty($resolved_route_id) && $this->db->table_exists('transport_route')) {
+            $r_row = $this->db->select('route_title')->where('id', $resolved_route_id)->get('transport_route')->row_array();
+            if (!empty($r_row['route_title'])) {
+                $resolved_route_title = $r_row['route_title'];
+            }
+        } elseif (!empty($students) && !empty($students[0]['route_id'])) {
+            $resolved_route_id    = (int)$students[0]['route_id'];
+            $resolved_route_title = $students[0]['route_title'] ?? '';
         }
 
-        $this->_success('Route trip and student history retrieved successfully', $history_data);
+        $response_data = [
+            'route_id'         => $resolved_route_id,
+            'route_title'      => $resolved_route_title,
+            'student_id'       => !empty($student_id) ? (int)$student_id : null,
+            'total_students'   => count($students),
+            'total_records'    => $st_history_result['total_records'] ?? 0,
+            'student_history'  => $st_history_result['student_history'] ?? [],
+            'day_wise_history' => $st_history_result['day_wise_history'] ?? [],
+            'students'         => $students
+        ];
+
+        $this->_success('Student timeline details history retrieved successfully', $response_data);
     }
 
     /**
@@ -1365,7 +1387,7 @@ class Routes extends Base
     /**
      * Fetch active students assigned to a route, stop, or vehicle
      */
-    private function _get_route_students($route_id = null, $pickup_point_id = null, $vehicle_id = null, $search = null)
+    private function _get_route_students($route_id = null, $pickup_point_id = null, $vehicle_id = null, $search = null, $student_id = null)
     {
         if (!$this->db->table_exists('student_session') || !$this->db->table_exists('students')) {
             return [];
@@ -1418,6 +1440,10 @@ class Routes extends Base
 
         if (!empty($route_id)) {
             $this->db->where('(vr.route_id = ' . (int)$route_id . ' OR rpp.transport_route_id = ' . (int)$route_id . ')', null, false);
+        }
+
+        if (!empty($student_id)) {
+            $this->db->where('s.id', (int)$student_id);
         }
 
         if (!empty($pickup_point_id)) {

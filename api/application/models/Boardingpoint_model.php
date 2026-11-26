@@ -40,6 +40,11 @@ class Boardingpoint_model extends CI_Model
                 vehicles.vehicle_no,
                 vehicles.vehicle_model,
                 attenders.attender_name,
+                COALESCE(vr.route_id, rpp.transport_route_id) AS route_id,
+                tr.route_title,
+                rpp.pickup_point_id,
+                pp.name AS pickup_point_name,
+                rpp.pickup_time,
                 COALESCE(
                     (
                         SELECT bp_p.timestamp 
@@ -75,6 +80,10 @@ class Boardingpoint_model extends CI_Model
             ->join('sections', 'sections.id = student_session.section_id', 'left')
             ->join('vehicles', 'vehicles.id = boarding_point.busid', 'left')
             ->join('attenders', 'attenders.id = boarding_point.attenderid', 'left')
+            ->join('vehicle_routes vr', 'vr.id = student_session.vehroute_id', 'left')
+            ->join('route_pickup_point rpp', 'rpp.id = student_session.route_pickup_point_id', 'left')
+            ->join('pickup_point pp', 'pp.id = rpp.pickup_point_id', 'left')
+            ->join('transport_route tr', 'tr.id = COALESCE(vr.route_id, rpp.transport_route_id)', 'left')
             ->where('boarding_point.id', $id)
             ->group_by('boarding_point.id');
 
@@ -141,7 +150,12 @@ class Boardingpoint_model extends CI_Model
                 s.image AS student_image,
                 v.vehicle_no,
                 v.vehicle_model,
-                a.attender_name
+                a.attender_name,
+                COALESCE(vr.route_id, rpp.transport_route_id) AS route_id,
+                tr.route_title,
+                rpp.pickup_point_id,
+                pp.name AS pickup_point_name,
+                rpp.pickup_time
             FROM boarding_point bp
             JOIN students s ON s.id = bp.studentid
             LEFT JOIN student_session ss ON ss.student_id = s.id
@@ -149,6 +163,10 @@ class Boardingpoint_model extends CI_Model
             LEFT JOIN sections sec ON sec.id = ss.section_id
             LEFT JOIN vehicles v ON v.id = bp.busid
             LEFT JOIN attenders a ON a.id = bp.attenderid
+            LEFT JOIN vehicle_routes vr ON vr.id = ss.vehroute_id
+            LEFT JOIN route_pickup_point rpp ON rpp.id = ss.route_pickup_point_id
+            LEFT JOIN pickup_point pp ON pp.id = rpp.pickup_point_id
+            LEFT JOIN transport_route tr ON tr.id = COALESCE(vr.route_id, rpp.transport_route_id)
             WHERE DATE(bp.timestamp) = $escaped_date
 
             UNION ALL
@@ -178,21 +196,34 @@ class Boardingpoint_model extends CI_Model
                 s.image AS student_image,
                 v.vehicle_no,
                 v.vehicle_model,
-                a.attender_name
+                a.attender_name,
+                COALESCE(vr.route_id, rpp.transport_route_id) AS route_id,
+                tr.route_title,
+                rpp.pickup_point_id,
+                pp.name AS pickup_point_name,
+                rpp.pickup_time
             FROM students s
             JOIN student_session ss ON ss.student_id = s.id
             LEFT JOIN classes c ON c.id = ss.class_id
             LEFT JOIN sections sec ON sec.id = ss.section_id
             LEFT JOIN vehicle_routes vr ON vr.id = ss.vehroute_id
+            LEFT JOIN route_pickup_point rpp ON rpp.id = ss.route_pickup_point_id
+            LEFT JOIN pickup_point pp ON pp.id = rpp.pickup_point_id
+            LEFT JOIN transport_route tr ON tr.id = COALESCE(vr.route_id, rpp.transport_route_id)
             LEFT JOIN vehicles v ON v.id = vr.vehicle_id
             LEFT JOIN attenders a ON a.id = vr.attender_id
             WHERE s.is_active = 'yes'
+            AND ((ss.vehroute_id IS NOT NULL AND ss.vehroute_id > 0) OR (ss.route_pickup_point_id IS NOT NULL AND ss.route_pickup_point_id > 0))
             AND s.id NOT IN (
                 SELECT studentid FROM boarding_point WHERE DATE(timestamp) = $escaped_date
             )
         ) AS cr
         WHERE 1=1
         ";
+
+        if (!empty($filters['route_id'])) {
+            $sql .= " AND route_id = " . intval($filters['route_id']);
+        }
 
         if (!empty($filters['status'])) {
             $sql .= " AND status = " . $this->db->escape($filters['status']);
@@ -222,6 +253,8 @@ class Boardingpoint_model extends CI_Model
                 section LIKE '%$sc%' OR 
                 vehicle_no LIKE '%$sc%' OR 
                 attender_name LIKE '%$sc%' OR 
+                route_title LIKE '%$sc%' OR 
+                pickup_point_name LIKE '%$sc%' OR 
                 address LIKE '%$sc%'
             )";
         }
