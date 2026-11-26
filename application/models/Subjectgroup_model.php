@@ -69,74 +69,93 @@ class Subjectgroup_model extends MY_Model {
     }
 
     public function ensure_schema() {
-        if (!$this->db->field_exists('syllabus', 'subject_groups')) {
-            $this->db->query("ALTER TABLE `subject_groups` ADD `syllabus` VARCHAR(100) NULL AFTER `description`");
-        }
-        if (!$this->db->field_exists('text_book', 'subject_groups')) {
-            $this->db->query("ALTER TABLE `subject_groups` ADD `text_book` VARCHAR(255) NULL AFTER `syllabus`");
-        }
-        if (!$this->db->field_exists('session_id', 'subject_groups')) {
-            $this->db->query("ALTER TABLE `subject_groups` ADD `session_id` INT NULL AFTER `text_book`");
-        }
-        if (!$this->db->field_exists('session_id', 'subject_group_subjects')) {
-            $this->db->query("ALTER TABLE `subject_group_subjects` ADD `session_id` INT NULL AFTER `subject_group_id`");
-        }
-        if (!$this->db->field_exists('session_id', 'subject_group_class_sections')) {
-            $this->db->query("ALTER TABLE `subject_group_class_sections` ADD `session_id` INT NULL AFTER `class_section_id`");
-        }
+        // Safely check and add columns without crashing if ALTER is not permitted on live server
+        try {
+            if (!$this->db->field_exists('syllabus', 'subject_groups')) {
+                @$this->db->query("ALTER TABLE `subject_groups` ADD `syllabus` VARCHAR(100) NULL");
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (!$this->db->field_exists('text_book', 'subject_groups')) {
+                @$this->db->query("ALTER TABLE `subject_groups` ADD `text_book` VARCHAR(255) NULL");
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (!$this->db->field_exists('session_id', 'subject_groups')) {
+                @$this->db->query("ALTER TABLE `subject_groups` ADD `session_id` INT NULL");
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (!$this->db->field_exists('session_id', 'subject_group_subjects')) {
+                @$this->db->query("ALTER TABLE `subject_group_subjects` ADD `session_id` INT NULL");
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            if (!$this->db->field_exists('session_id', 'subject_group_class_sections')) {
+                @$this->db->query("ALTER TABLE `subject_group_class_sections` ADD `session_id` INT NULL");
+            }
+        } catch (\Throwable $e) {}
     }
 
     public function edit($data, $delete_sections, $add_sections, $delete_subjects, $add_subjects) {
         $this->ensure_schema();
-        $fields = $this->db->list_fields('subject_groups');
-        $clean_data = array();
-        foreach ($data as $k => $v) {
-            if (in_array($k, $fields)) {
-                $clean_data[$k] = $v;
-            }
-        }
-
-        if (isset($clean_data['id'])) {
-            $this->db->where('id', $clean_data['id']);
-            $this->db->update('subject_groups', $clean_data);
-            $subject_group_id = $clean_data['id'];
-        }
 
         $session_id = $this->setting_model->getCurrentSession();
 
-        if (!empty($add_sections)) {
-            $sgcs_fields = $this->db->list_fields('subject_group_class_sections');
-            $has_sgcs_session = in_array('session_id', $sgcs_fields);
+        $clean_data = array(
+            'name'        => isset($data['name']) ? $data['name'] : '',
+            'description' => isset($data['description']) ? $data['description'] : null,
+        );
 
-            $section_group_array = array();
-            foreach ($add_sections as $section_group_key => $section_group_value) {
-                $row = array(
-                    'subject_group_id' => $subject_group_id,
-                    'class_section_id' => $section_group_value,
-                );
-                if ($has_sgcs_session) {
-                    $row['session_id'] = $session_id;
+        if ($this->db->field_exists('session_id', 'subject_groups')) {
+            $clean_data['session_id'] = $session_id;
+        }
+        if ($this->db->field_exists('syllabus', 'subject_groups') && isset($data['syllabus'])) {
+            $clean_data['syllabus'] = $data['syllabus'];
+        }
+        if ($this->db->field_exists('text_book', 'subject_groups') && isset($data['text_book'])) {
+            $clean_data['text_book'] = $data['text_book'];
+        }
+
+        if (isset($data['id']) && !empty($data['id'])) {
+            $this->db->where('id', $data['id']);
+            $this->db->update('subject_groups', $clean_data);
+            $subject_group_id = $data['id'];
+        }
+
+        if (!empty($add_sections)) {
+            $has_sgcs_session = $this->db->field_exists('session_id', 'subject_group_class_sections');
+            foreach ($add_sections as $section_group_value) {
+                if (!empty($section_group_value)) {
+                    $row = array(
+                        'subject_group_id' => $subject_group_id,
+                        'class_section_id' => $section_group_value,
+                    );
+                    if ($has_sgcs_session) {
+                        $row['session_id'] = $session_id;
+                    }
+                    $this->db->insert('subject_group_class_sections', $row);
                 }
-                $section_group_array[] = $row;
             }
-            $this->db->insert_batch('subject_group_class_sections', $section_group_array);
         }
         if (!empty($add_subjects)) {
-            $sgs_fields = $this->db->list_fields('subject_group_subjects');
-            $has_sgs_session = in_array('session_id', $sgs_fields);
-
-            $subject_group_subject_Array = array();
-            foreach ($add_subjects as $sub_group_key => $sub_group_value) {
-                $row = array(
-                    'subject_group_id' => $subject_group_id,
-                    'subject_id'       => $sub_group_value,
-                );
-                if ($has_sgs_session) {
-                    $row['session_id'] = $session_id;
+            $has_sgs_session = $this->db->field_exists('session_id', 'subject_group_subjects');
+            foreach ($add_subjects as $sub_group_value) {
+                if (!empty($sub_group_value)) {
+                    $row = array(
+                        'subject_group_id' => $subject_group_id,
+                        'subject_id'       => $sub_group_value,
+                    );
+                    if ($has_sgs_session) {
+                        $row['session_id'] = $session_id;
+                    }
+                    $this->db->insert('subject_group_subjects', $row);
                 }
-                $subject_group_subject_Array[] = $row;
             }
-            $this->db->insert_batch('subject_group_subjects', $subject_group_subject_Array);
         }
         if (!empty($delete_sections)) {
             $this->db->where('subject_group_id', $data['id']);
@@ -155,20 +174,24 @@ class Subjectgroup_model extends MY_Model {
 
         $session_id = !empty($data['session_id']) ? $data['session_id'] : $this->setting_model->getCurrentSession();
 
-        // Filter data to only existing columns in subject_groups
-        $fields = $this->db->list_fields('subject_groups');
-        $clean_data = array();
-        foreach ($data as $k => $v) {
-            if (in_array($k, $fields)) {
-                $clean_data[$k] = $v;
-            }
-        }
-        if (in_array('session_id', $fields) && !isset($clean_data['session_id'])) {
+        // Guaranteed core columns
+        $clean_data = array(
+            'name'        => isset($data['name']) ? $data['name'] : '',
+            'description' => isset($data['description']) ? $data['description'] : null,
+        );
+
+        if ($this->db->field_exists('session_id', 'subject_groups')) {
             $clean_data['session_id'] = $session_id;
+        }
+        if ($this->db->field_exists('syllabus', 'subject_groups') && isset($data['syllabus'])) {
+            $clean_data['syllabus'] = $data['syllabus'];
+        }
+        if ($this->db->field_exists('text_book', 'subject_groups') && isset($data['text_book'])) {
+            $clean_data['text_book'] = $data['text_book'];
         }
 
         //=======================Code Start===========================
-        if (isset($data['id'])) {
+        if (isset($data['id']) && !empty($data['id'])) {
             $this->db->where('id', $data['id']);
             $this->db->update('subject_groups', $clean_data);
             $subject_group_id = $data['id'];
@@ -189,39 +212,35 @@ class Subjectgroup_model extends MY_Model {
 
         if (!empty($subject_group_id)) {
             if (!empty($subject_group) && is_array($subject_group)) {
-                $sgs_fields = $this->db->list_fields('subject_group_subjects');
-                $has_sgs_session = in_array('session_id', $sgs_fields);
-
-                $subject_group_subject_Array = array();
-                foreach ($subject_group as $sub_group_key => $sub_group_value) {
-                    $row = array(
-                        'subject_group_id' => $subject_group_id,
-                        'subject_id'       => $sub_group_value,
-                    );
-                    if ($has_sgs_session) {
-                        $row['session_id'] = $session_id;
+                $has_sgs_session = $this->db->field_exists('session_id', 'subject_group_subjects');
+                foreach ($subject_group as $sub_group_value) {
+                    if (!empty($sub_group_value)) {
+                        $row = array(
+                            'subject_group_id' => $subject_group_id,
+                            'subject_id'       => $sub_group_value,
+                        );
+                        if ($has_sgs_session) {
+                            $row['session_id'] = $session_id;
+                        }
+                        $this->db->insert('subject_group_subjects', $row);
                     }
-                    $subject_group_subject_Array[] = $row;
                 }
-                $this->db->insert_batch('subject_group_subjects', $subject_group_subject_Array);
             }
 
             if (!empty($section_group) && is_array($section_group)) {
-                $sgcs_fields = $this->db->list_fields('subject_group_class_sections');
-                $has_sgcs_session = in_array('session_id', $sgcs_fields);
-
-                $section_group_array = array();
-                foreach ($section_group as $section_group_key => $section_group_value) {
-                    $row = array(
-                        'subject_group_id' => $subject_group_id,
-                        'class_section_id' => $section_group_value,
-                    );
-                    if ($has_sgcs_session) {
-                        $row['session_id'] = $session_id;
+                $has_sgcs_session = $this->db->field_exists('session_id', 'subject_group_class_sections');
+                foreach ($section_group as $section_group_value) {
+                    if (!empty($section_group_value)) {
+                        $row = array(
+                            'subject_group_id' => $subject_group_id,
+                            'class_section_id' => $section_group_value,
+                        );
+                        if ($has_sgcs_session) {
+                            $row['session_id'] = $session_id;
+                        }
+                        $this->db->insert('subject_group_class_sections', $row);
                     }
-                    $section_group_array[] = $row;
                 }
-                $this->db->insert_batch('subject_group_class_sections', $section_group_array);
             }
         }
 
