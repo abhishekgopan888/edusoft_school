@@ -415,30 +415,48 @@ class Homework extends Admin_Controller
 
             if ($record_id > 0) {
                 $id = $record_id;
-            } else {
+            }
+
+            if (empty($id)) {
+                $msg = array('errors' => $this->lang->line('error_occurred_please_try_again'));
+                $array = array('status' => 'fail', 'error' => $msg, 'message' => '');
+                echo json_encode($array);
+                return;
             }
 
             if ($record_id == 0) {
-                $homework_detail = $this->homework_model->get($id);
+                try {
+                    $homework_detail = $this->homework_model->get($id);
 
-                $sender_details = array(
-                    'class_id'      => $this->input->post("modal_class_id"),
-                    'section_id'    => $this->input->post("modal_section_id"),
-                    'homework_date' => date($this->customlib->getSchoolDateFormat(), $this->customlib->dateYYYYMMDDtoStrtotime($homework_detail['homework_date'])),
-                    'submit_date'   => date($this->customlib->getSchoolDateFormat(), $this->customlib->dateYYYYMMDDtoStrtotime($homework_detail['submit_date'])),
-                    'subject'       => $homework_detail['subject_name'],
-                );
+                    $hw_raw_date  = (!empty($homework_detail) && !empty($homework_detail['homework_date'])) ? $homework_detail['homework_date'] : null;
+                    $sub_raw_date = (!empty($homework_detail) && !empty($homework_detail['submit_date'])) ? $homework_detail['submit_date'] : null;
+                    $subject_name = (!empty($homework_detail) && !empty($homework_detail['subject_name'])) ? $homework_detail['subject_name'] : '';
 
-                $this->mailsmsconf->mailsms('homework', $sender_details);
+                    $formatted_hw_date  = !empty($hw_raw_date) ? date($this->customlib->getSchoolDateFormat(), $this->customlib->dateYYYYMMDDtoStrtotime($hw_raw_date)) : $this->input->post('homework_date');
+                    $formatted_sub_date = !empty($sub_raw_date) ? date($this->customlib->getSchoolDateFormat(), $this->customlib->dateYYYYMMDDtoStrtotime($sub_raw_date)) : $this->input->post('submit_date');
+
+                    $sender_details = array(
+                        'class_id'      => $this->input->post("modal_class_id"),
+                        'section_id'    => $this->input->post("modal_section_id"),
+                        'homework_date' => $formatted_hw_date,
+                        'submit_date'   => $formatted_sub_date,
+                        'subject'       => $subject_name,
+                    );
+
+                    $this->mailsmsconf->mailsms('homework', $sender_details);
+                } catch (\Throwable $mail_err) {
+                    log_message('error', 'Homework notification error: ' . $mail_err->getMessage());
+                }
             }
 
             $msg   = $this->lang->line('success_message');
             $array = array('status' => 'success', 'error' => '', 'message' => $msg);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
+            log_message('error', 'Homework create error: ' . $e->getMessage());
             $msg = array('errors' => $e->getMessage());
             $array = array('status' => 'fail', 'error' => $msg, 'message' => '');
-            }  
+        }  
         }
 
         echo json_encode($array);

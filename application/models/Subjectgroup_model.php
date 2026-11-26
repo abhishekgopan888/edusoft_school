@@ -326,7 +326,10 @@ class Subjectgroup_model extends MY_Model {
                 INNER JOIN subjects on subjects.id=subject_group_subjects.subject_id 
                 WHERE subject_group_id =" . $this->db->escape($subject_group_id);
         if (!empty($session_id)) {
-            $sql .= " AND (session_id =" . $this->db->escape($session_id) . " OR session_id IS NULL OR session_id = 0)";
+            $has_sgs_session = $this->db->field_exists('session_id', 'subject_group_subjects');
+            if ($has_sgs_session) {
+                $sql .= " AND (subject_group_subjects.session_id =" . $this->db->escape($session_id) . " OR subject_group_subjects.session_id IS NULL OR subject_group_subjects.session_id = 0)";
+            }
         }
         $sql .= $subject_groupid_condition;
         $query = $this->db->query($sql);
@@ -361,36 +364,32 @@ class Subjectgroup_model extends MY_Model {
     public function getGroupByClassandSection($class_id, $section_id,$session_id=NULL) {
         $return = true;
         $userdata = $this->customlib->getUserData();
-        $role_id = $userdata["role_id"];
+        $role_id = isset($userdata["role_id"]) ? $userdata["role_id"] : null;
         $subject_groupid_condition = "";
-        $session_id=IsNullOrEmptyString($session_id) ? $this->current_session :$session_id;
+        $session_id = IsNullOrEmptyString($session_id) ? $this->current_session : $session_id;
 
-        if (isset($role_id) && ($userdata["role_id"] == 2) && ($userdata["class_teacher"] == "yes")) {
-            if ($userdata["class_teacher"] == 'yes') {
+        if (isset($role_id) && ($role_id == 2) && (isset($userdata["class_teacher"]) && $userdata["class_teacher"] == "yes")) {
+            $subject_groupid = $this->getSubjectgroupbyTeacherid($userdata['id']);
 
+            $my_classes = $this->teacher_model->my_classes($userdata['id']);
 
-                $subject_groupid = $this->subjectgroup_model->getSubjectgroupbyTeacherid($userdata['id']);
-
-                $my_classes = $this->teacher_model->my_classes($userdata['id']);
-
-                if (in_array($class_id, $my_classes)) {
-
-                    $subject_groupid_condition = "";
+            if (is_array($my_classes) && in_array($class_id, $my_classes)) {
+                $subject_groupid_condition = "";
+            } else {
+                if (!empty($subject_groupid) && !empty($subject_groupid[0]['subject_group_ids'])) {
+                    $subject_groupid_condition = " and subject_groups.id in(" . $subject_groupid[0]['subject_group_ids'] . ")";
                 } else {
-
-                    if (!empty($subject_groupid)) {
-
-                        $subject_groupid_condition = " and subject_groups.id in(" . $subject_groupid[0]['subject_group_ids'] . ")";
-                    } else {
-
-                        $return = false;
-                    }
+                    $return = false;
                 }
             }
         }
 
         if ($return) {
-            $sql = "SELECT subject_groups.name, subject_group_class_sections.* from subject_group_class_sections INNER JOIN class_sections on class_sections.id=subject_group_class_sections.class_section_id INNER JOIN subject_groups on subject_groups.id=subject_group_class_sections.subject_group_id WHERE class_sections.class_id=" . $this->db->escape($class_id) . " and class_sections.section_id=" . $this->db->escape($section_id) . " and subject_groups.session_id=" . $this->db->escape($session_id) . " " . $subject_groupid_condition . " ORDER by subject_groups.id DESC";
+            $session_condition = "";
+            if (!empty($session_id)) {
+                $session_condition = " and (subject_groups.session_id=" . $this->db->escape($session_id) . " OR subject_groups.session_id IS NULL OR subject_groups.session_id = 0)";
+            }
+            $sql = "SELECT subject_groups.name, subject_group_class_sections.* from subject_group_class_sections INNER JOIN class_sections on class_sections.id=subject_group_class_sections.class_section_id INNER JOIN subject_groups on subject_groups.id=subject_group_class_sections.subject_group_id WHERE class_sections.class_id=" . $this->db->escape($class_id) . " and class_sections.section_id=" . $this->db->escape($section_id) . $session_condition . " " . $subject_groupid_condition . " ORDER by subject_groups.id DESC";
             $query = $this->db->query($sql);
 
             return $query->result_array();

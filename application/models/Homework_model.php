@@ -62,17 +62,25 @@ class Homework_model extends MY_model
         }
 
         if (!empty($id)) {
-            $this->db->select("`homework`.*,subject_group_subjects.subject_id,subject_group_subjects.id as `subject_group_subject_id`,subjects.name as subject_name,subject_groups.id as subject_groups_id,subject_groups.name,(select count(*) as total from submit_assignment where submit_assignment.homework_id=homework.id) as assignments");
-            $this->db->join("classes", "classes.id = homework.class_id");
-            $this->db->join("sections", "sections.id = homework.section_id");
-            $this->db->join("subject_group_subjects", "subject_group_subjects.id = homework.subject_group_subject_id");
-            $this->db->join("subjects", "subjects.id = subject_group_subjects.subject_id");
-            $this->db->join("subject_groups", "subject_group_subjects.subject_group_id=subject_groups.id");
-            $this->db->where('homework.session_id', $this->current_session);
+            $this->db->select("`homework`.*,classes.class,sections.section,subject_group_subjects.subject_id,subject_group_subjects.id as `subject_group_subject_id`,subjects.name as subject_name,subject_groups.id as subject_groups_id,subject_groups.name,(select count(*) as total from submit_assignment where submit_assignment.homework_id=homework.id) as assignments");
+            $this->db->join("classes", "classes.id = homework.class_id", "left");
+            $this->db->join("sections", "sections.id = homework.section_id", "left");
+            $this->db->join("subject_group_subjects", "subject_group_subjects.id = homework.subject_group_subject_id", "left");
+            $this->db->join("subjects", "subjects.id = subject_group_subjects.subject_id", "left");
+            $this->db->join("subject_groups", "subject_group_subjects.subject_group_id=subject_groups.id", "left");
             $this->db->where("homework.id", $id);
 
             $query = $this->db->get("homework");
-            return $query->row_array();
+            $row = $query->row_array();
+            if (empty($row)) {
+                // Direct fallback without joins if table relations are missing
+                $query_simple = $this->db->where("id", $id)->get("homework");
+                $row = $query_simple->row_array();
+                if (!empty($row) && !isset($row['subject_name'])) {
+                    $row['subject_name'] = '';
+                }
+            }
+            return $row;
         } else {
 
             $this->db->select("`homework`.*,classes.class,sections.section,subject_group_subjects.subject_id,subject_group_subjects.id as `subject_group_subject_id`,subjects.name as subject_name,subject_groups.id as subject_groups_id,subject_groups.name,(select count(*) as total from submit_assignment where submit_assignment.homework_id=homework.id) as assignments");

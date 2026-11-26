@@ -463,7 +463,15 @@ $(document).on('submit','form#evaluation_data',function(e){
                 }
             },
             error: function (xhr) { // if error occured
-                alert("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
+                var errMessage = "<?php echo $this->lang->line('error_occurred_please_try_again'); ?>";
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    if (typeof xhr.responseJSON.error === 'object') {
+                        errMessage = Object.values(xhr.responseJSON.error).filter(Boolean).join('<br>');
+                    } else {
+                        errMessage = xhr.responseJSON.error;
+                    }
+                }
+                errorMsg(errMessage);
                 $this.button('reset');
             },
             complete: function () {
@@ -593,7 +601,15 @@ $(document).on('submit','form#evaluation_data',function(e){
                 }
             },
             error: function (xhr) { // if error occured
-                alert("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
+                var errMessage = "<?php echo $this->lang->line('error_occurred_please_try_again'); ?>";
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    if (typeof xhr.responseJSON.error === 'object') {
+                        errMessage = Object.values(xhr.responseJSON.error).filter(Boolean).join('<br>');
+                    } else {
+                        errMessage = xhr.responseJSON.error;
+                    }
+                }
+                errorMsg(errMessage);
                 $this.button('reset');
             },
             complete: function () {
