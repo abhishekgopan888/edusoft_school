@@ -204,6 +204,11 @@ class Dashboard extends CI_Controller
         }
 
         $routes_list = [];
+        $all_total   = 0;
+        $all_boarded = 0;
+        $all_dropped = 0;
+        $all_pending = 0;
+
         foreach ($routes_query as $r) {
             $r_id = (int)$r['id'];
             $statuses = isset($students_by_route[$r_id]) ? $students_by_route[$r_id] : [];
@@ -225,6 +230,11 @@ class Dashboard extends CI_Controller
 
             $r_progress = $r_total > 0 ? (float)number_format((($r_boarded + $r_dropped) / $r_total) * 100, 2, '.', '') : 0.00;
 
+            $all_total   += $r_total;
+            $all_boarded += $r_boarded;
+            $all_dropped += $r_dropped;
+            $all_pending += $r_pending;
+
             $routes_list[] = [
                 'route_id'          => $r_id,
                 'route_title'       => $r['route_title'],
@@ -239,8 +249,14 @@ class Dashboard extends CI_Controller
         if ($route_id && !empty($routes_list)) {
             $response_data = $routes_list[0];
         } else {
+            $all_progress = $all_total > 0 ? (float)number_format((($all_boarded + $all_dropped) / $all_total) * 100, 2, '.', '') : 0.00;
             $response_data = [
-                'routes' => $routes_list
+                'total_routes'      => count($routes_list),
+                'total_students'    => $all_total,
+                'boarded'           => $all_boarded,
+                'pending'           => $all_pending,
+                'dropped'           => $all_dropped,
+                'boarding_progress' => $all_progress
             ];
         }
 
