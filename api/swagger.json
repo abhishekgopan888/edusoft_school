@@ -852,8 +852,8 @@
         },
         "/dashboard": {
             "get": {
-                "summary": "Get Route-based Dashboard details (Route, Vehicles, Stops, Students, Boarding stats)",
-                "description": "Retrieves corresponding route-against dashboard overview. For each route (or filtered route), lists its assigned vehicles with drivers/attenders, pickup stops with students count, assigned students with contact & transport info, and student boarding progress.",
+                "summary": "Get Route-based Dashboard summary (Total students, Boarded, Pending, Dropped, Boarding progress)",
+                "description": "Retrieves route-based dashboard summary containing only route details, total students in the route, boarded count, pending count, dropped count, and boarding progress percentage.",
                 "tags": [
                     "Dashboard"
                 ],
@@ -863,6 +863,9 @@
                     },
                     "401": {
                         "description": "Unauthorized - Invalid or missing API key"
+                    },
+                    "404": {
+                        "description": "Route not found"
                     }
                 },
                 "parameters": [
@@ -890,7 +893,7 @@
                         "name": "route_id",
                         "in": "query",
                         "required": false,
-                        "description": "Filter dashboard data by specific Route ID to list only that corresponding route's details",
+                        "description": "Filter dashboard data by specific Route ID",
                         "schema": {
                             "type": "integer",
                             "example": 1
