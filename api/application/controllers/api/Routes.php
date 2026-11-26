@@ -197,6 +197,13 @@ class Routes extends Base
                         'schema' => ['type' => 'integer', 'example' => 825]
                     ],
                     [
+                        'name' => 'search',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Search student by name, admission number, or mobile',
+                        'schema' => ['type' => 'string']
+                    ],
+                    [
                         'name' => 'date',
                         'in' => 'query',
                         'required' => false,
@@ -518,56 +525,6 @@ class Routes extends Base
 
         $students = $this->_get_route_students($route_id, $pickup_point_id, !empty($bus_number) ? $bus_number : $vehicle_id, $search);
 
-        // Fetch day-wise history for these students
-        $history_result = $this->_get_student_day_wise_history(
-            $students, 
-            $route_id, 
-            !empty($bus_number) ? $bus_number : $vehicle_id, 
-            $pickup_point_id, 
-            $date, 
-            $date_from, 
-            $date_to, 
-            $limit, 
-            $offset
-        );
-
-        $student_history  = $history_result['student_history'] ?? [];
-        $day_wise_history = $history_result['day_wise_history'] ?? [];
-
-        // Attach day-wise history to each individual student record
-        $history_by_student = [];
-        foreach ($student_history as $h_item) {
-            $sid = (int)$h_item['student_id'];
-            if (!isset($history_by_student[$sid])) {
-                $history_by_student[$sid] = [];
-            }
-            $history_by_student[$sid][] = $h_item;
-        }
-
-        foreach ($students as &$st) {
-            $sid = (int)$st['student_id'];
-            $st['day_wise_history'] = $history_by_student[$sid] ?? [];
-            $st['student_history']  = $history_by_student[$sid] ?? [];
-        }
-        unset($st);
-
-        // Group students by stop for stops_summary
-        $stops_grouped = [];
-        foreach ($students as $st) {
-            $sp_id = !empty($st['pickup_point_id']) ? $st['pickup_point_id'] : 0;
-            if (!isset($stops_grouped[$sp_id])) {
-                $stops_grouped[$sp_id] = [
-                    'pickup_point_id'   => $sp_id,
-                    'pickup_point_name' => !empty($st['pickup_point_name']) ? $st['pickup_point_name'] : 'Unassigned Stop',
-                    'pickup_time'       => $st['pickup_time'],
-                    'students_count'    => 0,
-                    'students'          => []
-                ];
-            }
-            $stops_grouped[$sp_id]['students_count']++;
-            $stops_grouped[$sp_id]['students'][] = $st;
-        }
-
         $route_name = '';
         if (!empty($route_id) && $this->db->table_exists('transport_route')) {
             $r = $this->db->where('id', (int)$route_id)->get('transport_route')->row_array();
@@ -577,18 +534,13 @@ class Routes extends Base
         }
 
         $response_data = [
-            'route_id'               => !empty($route_id) ? (int)$route_id : null,
-            'route_title'            => $route_name,
-            'total_students'         => count($students),
-            'total_stops'            => count($stops_grouped),
-            'total_history_records'  => $history_result['total_records'] ?? count($student_history),
-            'stops_summary'          => array_values($stops_grouped),
-            'student_history'        => $student_history,
-            'day_wise_history'       => $day_wise_history,
-            'students'               => $students
+            'route_id'       => !empty($route_id) ? (int)$route_id : null,
+            'route_title'    => $route_name,
+            'total_students' => count($students),
+            'students'       => $students
         ];
 
-        $this->_success('Assigned route students and day-wise student history retrieved successfully', $response_data);
+        $this->_success('Assigned route students retrieved successfully', $response_data);
     }
 
     /**

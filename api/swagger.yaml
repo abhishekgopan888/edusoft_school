@@ -981,6 +981,12 @@ paths:
           schema:
             type: integer
             example: 825
+        - name: search
+          in: query
+          required: false
+          description: "Search student by name, admission number, or mobile"
+          schema:
+            type: string
         - name: date
           in: query
           required: false
