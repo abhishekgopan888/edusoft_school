@@ -178,6 +178,20 @@ $route['api/trip/current'] = 'trip/active';
 $route['bus/location'] = 'bus/location';
 $route['api/bus/location'] = 'bus/location';
 
+// Homework routes
+$route['homework'] = 'homework/index';
+$route['homework/list'] = 'homework/index';
+$route['homework/details'] = 'homework/details';
+$route['homework/details/(:num)'] = 'homework/details/$1';
+$route['homework/daily'] = 'homework/daily';
+
+$route['api/homework'] = 'homework/index';
+$route['api/homework/list'] = 'homework/index';
+$route['api/homework/details'] = 'homework/details';
+$route['api/homework/details/(:num)'] = 'homework/details/$1';
+$route['api/homework/daily'] = 'homework/daily';
+
+
 
 
 

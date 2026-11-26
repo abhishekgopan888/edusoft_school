@@ -53,6 +53,10 @@
             "description": "Simple health and availability endpoints."
         },
         {
+            "name": "Homework Management",
+            "description": "Endpoints for retrieving homework assignments, student submission statuses, and daily assignments. Requires X-API-Key or Bearer token."
+        },
+        {
             "name": "Route Management",
             "description": "Endpoints for managing and retrieving school transport routes (from /admin/route), assigned vehicles/buses, and pickup points. Requires X-API-Key or Bearer token."
         },
@@ -2306,6 +2310,226 @@
                 "responses": {
                     "200": {
                         "description": "Successful response"
+                    }
+                }
+            }
+        },
+        "/homework": {
+            "get": {
+                "summary": "Get homework list",
+                "description": "Retrieves homework assignments with class, section, subject, and staff information. Supports filtering by student_id, class_id, section_id, homework_status (pending, submitted, evaluated), subject_id, or date.",
+                "tags": [
+                    "Homework Management"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ],
+                "parameters": [
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Student ID to fetch homework for (includes student-specific status: pending, submitted, evaluated).",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "class_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by class ID.",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "section_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by section ID.",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "homework_status",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by homework status: pending, submitted, evaluated (when student_id is provided).",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "submitted",
+                                "evaluated"
+                            ],
+                            "example": "pending"
+                        }
+                    },
+                    {
+                        "name": "subject_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by subject ID or subject_group_subject_id.",
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter by homework date (YYYY-MM-DD). Alias: homework_date",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-11-26"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Maximum number of records to return (default 50, max 200).",
+                        "schema": {
+                            "type": "integer",
+                            "example": 50
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "required": false,
+                        "description": "Number of records to skip for pagination (default 0).",
+                        "schema": {
+                            "type": "integer",
+                            "example": 0
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of homework assignments retrieved successfully."
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing authentication token / API key."
+                    }
+                }
+            }
+        },
+        "/homework/details": {
+            "get": {
+                "summary": "Get homework details by ID",
+                "description": "Retrieves complete information for a specific homework assignment including subject, class, teacher, instructions, document URL, and optional student submission details.",
+                "tags": [
+                    "Homework Management"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Homework ID to retrieve (alias: homework_id).",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Optional student ID to include submission & evaluation status.",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Homework details retrieved successfully."
+                    },
+                    "400": {
+                        "description": "Homework ID is required."
+                    },
+                    "404": {
+                        "description": "Homework assignment not found."
+                    },
+                    "401": {
+                        "description": "Unauthorized."
+                    }
+                }
+            }
+        },
+        "/homework/daily": {
+            "get": {
+                "summary": "Get daily assignments",
+                "description": "Retrieves daily assignments for a student.",
+                "tags": [
+                    "Homework Management"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ],
+                "parameters": [
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Student ID to fetch daily assignments for.",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filter assignments by date (YYYY-MM-DD).",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-11-26"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daily assignments retrieved successfully."
+                    },
+                    "400": {
+                        "description": "Student ID is required."
+                    },
+                    "401": {
+                        "description": "Unauthorized."
                     }
                 }
             }
