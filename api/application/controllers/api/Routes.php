@@ -177,8 +177,8 @@ class Routes extends Base
             ],
             'history' => [
                 'path' => '/api/routes/history',
-                'summary' => 'Get student transit and day-wise timeline history for routes',
-                'description' => 'Retrieves day-wise student transit timeline history including boarding/drop times, status, vehicle, driver, attender, and stop details. Supports filtering by route_id and student_id.',
+                'summary' => 'Get student transit and day-wise timeline history by route_id and student_id',
+                'description' => 'Retrieves student details and day-wise transit timeline history including boarding/drop times, status, vehicle, driver, attender, and stop details. Filter by route_id and student_id.',
                 'http_method' => 'get',
                 'security' => [['BearerAuth' => []], ['ApiKeyAuth' => []], []],
                 'parameters' => [
@@ -197,32 +197,11 @@ class Routes extends Base
                         'schema' => ['type' => 'integer', 'example' => 825]
                     ],
                     [
-                        'name' => 'pickup_point_id',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter history by Pickup Point ID (e.g. 2)',
-                        'schema' => ['type' => 'integer', 'example' => 2]
-                    ],
-                    [
-                        'name' => 'vehicle_id',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Filter history by Vehicle ID or Bus Number (e.g. 12, "KL 17 Y 8989")',
-                        'schema' => ['type' => 'string', 'example' => '12']
-                    ],
-                    [
-                        'name' => 'search',
-                        'in' => 'query',
-                        'required' => false,
-                        'description' => 'Search student by name, admission number, or mobile',
-                        'schema' => ['type' => 'string', 'example' => 'KAILAS']
-                    ],
-                    [
                         'name' => 'date',
                         'in' => 'query',
                         'required' => false,
                         'description' => 'Filter history by date (YYYY-MM-DD)',
-                        'schema' => ['type' => 'string', 'example' => '2026-11-13']
+                        'schema' => ['type' => 'string', 'example' => '2026-11-26']
                     ],
                     [
                         'name' => 'date_from',
@@ -1555,8 +1534,7 @@ class Routes extends Base
                 TIME(bp.timestamp) as record_time,
                 v.vehicle_no as bus_number,
                 v.vehicle_model,
-                att.attender_name,
-                att.attender_phone
+                att.attender_name
             ")
             ->from('boarding_point bp')
             ->join('vehicles v', '(v.id = bp.busid OR v.vehicle_no = bp.busid)', 'left')
@@ -1596,8 +1574,7 @@ class Routes extends Base
                 v.vehicle_model,
                 COALESCE(d.driver_name, vr_d.driver_name) as driver_name,
                 COALESCE(d.contact, vr_d.contact) as driver_contact,
-                att.attender_name,
-                att.attender_phone
+                att.attender_name
             ")
             ->from('trips t')
             ->join('transport_route tr', 'tr.id = t.route_id', 'left')

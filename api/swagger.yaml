@@ -981,27 +981,6 @@ paths:
           schema:
             type: integer
             example: 825
-        - name: pickup_point_id
-          in: query
-          required: false
-          description: Filter history by Pickup Point ID (e.g. 2)
-          schema:
-            type: integer
-            example: 2
-        - name: vehicle_id
-          in: query
-          required: false
-          description: "Filter history by Vehicle ID or Bus Number (e.g. 12, \"KL 17 Y 8989\")"
-          schema:
-            type: string
-            example: 12
-        - name: search
-          in: query
-          required: false
-          description: "Search student by name, admission number, or mobile"
-          schema:
-            type: string
-            example: KAILAS
         - name: date
           in: query
           required: false

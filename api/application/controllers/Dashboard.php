@@ -113,16 +113,6 @@ class Dashboard extends CI_Controller
             ->set_output(json_encode(['status' => 'error', 'message' => $message]));
     }
 
-    private function _format_boarding_progress($completed, $total)
-    {
-        if ($total <= 0) {
-            return '0/10';
-        }
-        $val = round(($completed / $total) * 10, 1);
-        $formatted = (fmod($val, 1) == 0.0) ? (int)$val : $val;
-        return $formatted . '/10';
-    }
-
     public function index()
     {
         $this->_check_auth();
@@ -238,7 +228,7 @@ class Dashboard extends CI_Controller
                 }
             }
 
-            $r_progress = $this->_format_boarding_progress($r_boarded + $r_dropped, $r_total);
+            $r_progress = $r_total > 0 ? (float)number_format((($r_boarded + $r_dropped) / $r_total) * 100, 2, '.', '') : 0.00;
 
             $all_total   += $r_total;
             $all_boarded += $r_boarded;
@@ -259,7 +249,7 @@ class Dashboard extends CI_Controller
         if ($route_id && !empty($routes_list)) {
             $response_data = $routes_list[0];
         } else {
-            $all_progress = $this->_format_boarding_progress($all_boarded + $all_dropped, $all_total);
+            $all_progress = $all_total > 0 ? (float)number_format((($all_boarded + $all_dropped) / $all_total) * 100, 2, '.', '') : 0.00;
             $response_data = [
                 'total_routes'      => count($routes_list),
                 'total_students'    => $all_total,

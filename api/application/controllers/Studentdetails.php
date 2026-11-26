@@ -208,6 +208,33 @@ class Studentdetails extends CI_Controller
 
         $this->db->where('id', $student['id'])->update('students', ['boarding_status' => $new_status]);
 
+        // Also record event in boarding_point so timelines, boardingpoint, and dashboard stay in sync
+        if ($this->db->table_exists('boarding_point')) {
+            $busid = 0;
+            $attenderid = 0;
+            if ($this->db->table_exists('student_session') && $this->db->table_exists('vehicle_routes')) {
+                $vr = $this->db->select('vr.vehicle_id, vr.attender_id')
+                    ->from('student_session ss')
+                    ->join('vehicle_routes vr', 'vr.id = ss.vehroute_id', 'left')
+                    ->where('ss.student_id', $student['id'])
+                    ->order_by('ss.id', 'DESC')
+                    ->limit(1)
+                    ->get()->row_array();
+                if ($vr) {
+                    $busid = !empty($vr['vehicle_id']) ? (int)$vr['vehicle_id'] : 0;
+                    $attenderid = !empty($vr['attender_id']) ? (int)$vr['attender_id'] : 0;
+                }
+            }
+
+            $this->db->insert('boarding_point', [
+                'studentid'  => (int)$student['id'],
+                'busid'      => $busid,
+                'attenderid' => $attenderid,
+                'status'     => strtolower($new_status),
+                'timestamp'  => date('Y-m-d H:i:s')
+            ]);
+        }
+
         $this->_success('Student boarding status updated successfully', [
             'student_id' => (int) $student['id'],
             'admission_no' => $student['admission_no'],

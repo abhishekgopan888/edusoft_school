@@ -196,39 +196,67 @@ class Boardingpoint extends CI_Controller
 
         if (!empty($id)) {
             $record = $this->boardingpoint_model->get($id);
+            if (!$record) {
+                $this->_error('Boarding record not found', 404);
+                return;
+            }
+            $sid = !empty($record['studentid']) ? (int)$record['studentid'] : (int)$studentid;
+            $update_data = [
+                'id'     => (int)$record['id'],
+                'status' => $status
+            ];
+            if (isset($input['busid'])) {
+                $update_data['busid'] = !empty($input['busid']) ? (int)$input['busid'] : 0;
+            }
+            if (isset($input['attenderid'])) {
+                $update_data['attenderid'] = !empty($input['attenderid']) ? (int)$input['attenderid'] : 0;
+            }
+            $target_id = $this->boardingpoint_model->add($update_data);
         } elseif (!empty($studentid)) {
             $records = $this->boardingpoint_model->get(null, ['studentid' => $studentid]);
             $record  = !empty($records) ? $records[0] : null;
+            $sid     = (int)$studentid;
+
+            $busid = isset($input['busid']) ? (int)$input['busid'] : (!empty($record['busid']) ? (int)$record['busid'] : 0);
+            $attenderid = isset($input['attenderid']) ? (int)$input['attenderid'] : (!empty($record['attenderid']) ? (int)$record['attenderid'] : 0);
+
+            if ($busid === 0 || $attenderid === 0) {
+                $vr = $this->db->select('vr.vehicle_id, vr.attender_id')
+                    ->from('student_session ss')
+                    ->join('vehicle_routes vr', 'vr.id = ss.vehroute_id', 'left')
+                    ->where('ss.student_id', $sid)
+                    ->order_by('ss.id', 'DESC')
+                    ->limit(1)
+                    ->get()->row_array();
+                if ($vr) {
+                    if ($busid === 0 && !empty($vr['vehicle_id'])) {
+                        $busid = (int)$vr['vehicle_id'];
+                    }
+                    if ($attenderid === 0 && !empty($vr['attender_id'])) {
+                        $attenderid = (int)$vr['attender_id'];
+                    }
+                }
+            }
+
+            // Insert new boarding/dropping event so timestamps for boarded and dropped are both preserved
+            $target_id = $this->boardingpoint_model->add([
+                'studentid'  => $sid,
+                'busid'      => $busid,
+                'attenderid' => $attenderid,
+                'status'     => $status,
+                'timestamp'  => date('Y-m-d H:i:s')
+            ]);
         } else {
             $this->_error('Either Boarding record ID or studentid is required', 400);
             return;
         }
 
-        if (!$record) {
-            $this->_error('Boarding record not found', 404);
-            return;
-        }
-
-        $update_data = [
-            'id'     => $record['id'],
-            'status' => $status
-        ];
-        if (isset($input['busid'])) {
-            $update_data['busid'] = !empty($input['busid']) ? (int)$input['busid'] : 0;
-        }
-        if (isset($input['attenderid'])) {
-            $update_data['attenderid'] = !empty($input['attenderid']) ? (int)$input['attenderid'] : 0;
-        }
-
-        $this->boardingpoint_model->add($update_data);
-
         // Also keep students.boarding_status in sync
-        $sid = !empty($record['studentid']) ? $record['studentid'] : $studentid;
         if (!empty($sid)) {
             $this->db->where('id', $sid)->update('students', ['boarding_status' => ucfirst($status)]);
         }
 
-        $updated_record = $this->boardingpoint_model->get($record['id']);
+        $updated_record = $this->boardingpoint_model->get($target_id);
 
         $this->_success('Boarding status updated successfully', $updated_record);
     }
