@@ -350,7 +350,6 @@ class Homework extends Admin_Controller
             }
 
             $data = array(
-                'id'                       => $record_id,
                 'session_id'               => $session_id,
                 'class_id'                 => $this->input->post("modal_class_id"),
                 'section_id'               => $this->input->post("modal_section_id"),
@@ -364,6 +363,10 @@ class Homework extends Admin_Controller
                 'created_by'               => $userdata["id"],
                 'subject_id'               => NULL,
             );
+
+            if ((int)$record_id > 0) {
+                $data['id'] = (int)$record_id;
+            }
 
             if ($record_id > 0) { //edit
                 $prev_file_size             = 0;

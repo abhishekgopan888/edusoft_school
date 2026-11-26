@@ -866,13 +866,13 @@ paths:
         - {}
   /routes/students:
     get:
-      summary: Get students assigned to transport routes and pickup stops
-      description: "Retrieves all students assigned to a specific transport route, stop, or vehicle, including class, section, guardian details, and stop-level breakdown."
+      summary: Get students assigned to transport routes and pickup stops with day-wise transit history
+      description: "Retrieves all students assigned to a specific transport route, stop, or vehicle, including class, section, guardian details, stop-level breakdown, and day-wise boarding/trip history."
       tags:
         - Route Management
       responses:
         200:
-          description: Assigned route students retrieved successfully
+          description: Assigned route students and day-wise student history retrieved successfully
         401:
           description: Unauthorized
       parameters:
@@ -904,19 +904,57 @@ paths:
           schema:
             type: string
             example: KAILAS
+        - name: date
+          in: query
+          required: false
+          description: "Filter student day-wise history by exact date (YYYY-MM-DD)"
+          schema:
+            type: string
+            format: date
+            example: 2026-11-26
+        - name: date_from
+          in: query
+          required: false
+          description: "Filter student history from start date (YYYY-MM-DD)"
+          schema:
+            type: string
+            format: date
+            example: 2026-11-01
+        - name: date_to
+          in: query
+          required: false
+          description: "Filter student history up to end date (YYYY-MM-DD)"
+          schema:
+            type: string
+            format: date
+            example: 2026-11-30
+        - name: limit
+          in: query
+          required: false
+          description: "Number of history records to return (default 50, max 200)"
+          schema:
+            type: integer
+            example: 50
+        - name: offset
+          in: query
+          required: false
+          description: "Number of records to skip (default 0)"
+          schema:
+            type: integer
+            example: 0
       security:
         - BearerAuth: {}
         - ApiKeyAuth: {}
         - {}
   /routes/history:
     get:
-      summary: Get route trip history and past telemetry
-      description: "Retrieves past transport trips for routes including start/end times, duration, driver, attender, vehicle, stops completed, student counts, and GPS summary."
+      summary: Get student transit and day-wise history for routes
+      description: "Retrieves day-wise student transit history including boarding/drop times, status, vehicle, driver, attender, and stop details."
       tags:
         - Route Management
       responses:
         200:
-          description: Route trip history retrieved successfully
+          description: Student transit and day-wise history retrieved successfully
         401:
           description: Unauthorized
       parameters:
@@ -927,51 +965,50 @@ paths:
           schema:
             type: integer
             example: 2
-        - name: bus_id
+        - name: pickup_point_id
           in: query
           required: false
-          description: "Filter history by Bus ID or Bus Number (e.g. 12, \"KL 17 Y 8989\")"
+          description: Filter history by Pickup Point ID (e.g. 2)
+          schema:
+            type: integer
+            example: 2
+        - name: vehicle_id
+          in: query
+          required: false
+          description: "Filter history by Vehicle ID or Bus Number (e.g. 12, \"KL 17 Y 8989\")"
           schema:
             type: string
             example: 12
-        - name: trip_id
+        - name: search
           in: query
           required: false
-          description: Filter by specific Trip ID
-          schema:
-            type: integer
-            example: 1
-        - name: status
-          in: query
-          required: false
-          description: "Filter by trip status (completed, started, all)"
+          description: "Search student by name, admission number, or mobile"
           schema:
             type: string
-            enum:
-              - all
-              - completed
-              - started
-            example: completed
+            example: KAILAS
         - name: date
           in: query
           required: false
-          description: "Filter trips on specific date (YYYY-MM-DD)"
+          description: "Filter history by date (YYYY-MM-DD)"
           schema:
             type: string
-            example: "2026-11-13"
+            format: date
+            example: "2026-11-26"
         - name: date_from
           in: query
           required: false
-          description: "Filter trips from start date (YYYY-MM-DD)"
+          description: "Filter history from start date (YYYY-MM-DD)"
           schema:
             type: string
+            format: date
             example: "2026-11-01"
         - name: date_to
           in: query
           required: false
-          description: "Filter trips up to end date (YYYY-MM-DD)"
+          description: "Filter history up to end date (YYYY-MM-DD)"
           schema:
             type: string
+            format: date
             example: "2026-11-30"
         - name: limit
           in: query
@@ -1017,6 +1054,20 @@ paths:
           schema:
             type: string
             example: 12
+        - name: pickup_point_id
+          in: query
+          required: false
+          description: Pickup Point ID to filter stop or students
+          schema:
+            type: integer
+            example: 2
+        - name: search
+          in: query
+          required: false
+          description: Search student name or admission number in timeline
+          schema:
+            type: string
+            example: KAILAS
       security:
         - BearerAuth: {}
         - ApiKeyAuth: {}

@@ -19,13 +19,18 @@ class Homework_model extends MY_model
         $this->db->trans_start(); # Starting Transaction
         $this->db->trans_strict(false); # See Note 01. If you wish can remove as well
         //=======================Code Start===========================
-        if (isset($data["id"]) && $data["id"] > 0) {
+        if (isset($data["id"]) && (int)$data["id"] > 0) {
             $this->db->where("id", $data["id"])->update("homework", $data);
             $message   = UPDATE_RECORD_CONSTANT . " On homework id " . $data['id'];
             $action    = "Update";
             $record_id = $insert_id = $data['id'];
             $this->log($message, $record_id, $action);
         } else {
+            if (isset($data["id"])) {
+                unset($data["id"]);
+            }
+            // Ensure no leftover zero id blocks auto_increment
+            $this->db->where('id', 0)->delete('homework');
 
             $this->db->insert("homework", $data);
             $insert_id = $this->db->insert_id();
@@ -137,7 +142,10 @@ class Homework_model extends MY_model
         $this->db->join("subject_group_subjects", "subject_group_subjects.id = homework.subject_group_subject_id");
         $this->db->join("subjects", "subjects.id = subject_group_subjects.subject_id");
         $this->db->join("subject_groups", "subject_group_subjects.subject_group_id=subject_groups.id");
-        $this->db->where('subject_groups.session_id', $this->current_session);
+        $has_sg_session = $this->db->field_exists('session_id', 'subject_groups');
+        if ($has_sg_session) {
+            $this->db->where('(subject_groups.session_id = ' . $this->db->escape($this->current_session) . ' OR subject_groups.session_id IS NULL OR subject_groups.session_id = 0)', null, false);
+        }
         $this->db->order_by('homework.homework_date', 'DESC');
         $query = $this->db->get("homework");
         return $query->result_array();
@@ -164,9 +172,11 @@ class Homework_model extends MY_model
             ->join("subject_groups", "subject_group_subjects.subject_group_id=subject_groups.id")
             ->join("staff", "homework.created_by=staff.id")
             ->join("staff_roles", "staff_roles.staff_id=staff.id")
-            ->orderable('classes.class,sections.section,subject_groups.name,subjects.name,homework_date,submit_date,evaluation_date,staff.name')
-            ->where('subject_groups.session_id', $this->current_session)
-            ->where('homework.submit_date >=', date("Y-m-d"))
+            ->orderable('classes.class,sections.section,subject_groups.name,subjects.name,homework_date,submit_date,evaluation_date,staff.name');
+        if ($this->db->field_exists('session_id', 'subject_groups')) {
+            $this->datatables->where('(subject_groups.session_id = ' . $this->db->escape($this->current_session) . ' OR subject_groups.session_id IS NULL OR subject_groups.session_id = 0)', null, false);
+        }
+        $this->datatables->where('homework.submit_date >=', date("Y-m-d"))
             ->sort('homework.homework_date', 'DESC')
             ->from('homework');
         return $this->datatables->generate('json');
@@ -193,9 +203,11 @@ class Homework_model extends MY_model
             ->join("subject_groups", "subject_group_subjects.subject_group_id=subject_groups.id")
             ->join("staff", "homework.created_by=staff.id")
             ->join("staff_roles", "staff_roles.staff_id=staff.id")
-            ->orderable('" ",classes.class,sections.section,subject_groups.name,subjects.name,homework_date,submit_date,evaluation_date,staff.name')
-            ->where('subject_groups.session_id', $this->current_session)
-            ->where('homework.submit_date <', date("Y-m-d"))
+            ->orderable('" ",classes.class,sections.section,subject_groups.name,subjects.name,homework_date,submit_date,evaluation_date,staff.name');
+        if ($this->db->field_exists('session_id', 'subject_groups')) {
+            $this->datatables->where('(subject_groups.session_id = ' . $this->db->escape($this->current_session) . ' OR subject_groups.session_id IS NULL OR subject_groups.session_id = 0)', null, false);
+        }
+        $this->datatables->where('homework.submit_date <', date("Y-m-d"))
             ->sort('homework.homework_date', 'DESC')
             ->from('homework');
         return $this->datatables->generate('json');
@@ -771,7 +783,10 @@ class Homework_model extends MY_model
         $this->db->join("subject_group_subjects", "subject_group_subjects.id = homework.subject_group_subject_id");
         $this->db->join("subjects", "subjects.id = subject_group_subjects.subject_id");
         $this->db->join("subject_groups", "subject_group_subjects.subject_group_id=subject_groups.id");
-        $this->db->where('subject_groups.session_id', $this->current_session);
+        $has_sg_session = $this->db->field_exists('session_id', 'subject_groups');
+        if ($has_sg_session) {
+            $this->db->where('(subject_groups.session_id = ' . $this->db->escape($this->current_session) . ' OR subject_groups.session_id IS NULL OR subject_groups.session_id = 0)', null, false);
+        }
         $this->db->order_by('homework.homework_date', 'DESC');
         $query = $this->db->get("homework");
         return $query->result_array();

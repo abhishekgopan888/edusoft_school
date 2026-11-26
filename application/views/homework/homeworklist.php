@@ -420,7 +420,7 @@ $language_name = $language["short_code"];
                 $('#evaluation_details').html(data);        
             },
             error: function () {
-                alert("<?php echo $this->lang->line('fail'); ?>");
+                errorMsg("<?php echo $this->lang->line('fail'); ?>");
             }
         });
     }
@@ -651,8 +651,7 @@ $(document).on('submit','form#evaluation_data',function(e){
                     $('#' + subject_group_target).append(div_data);
                 },
                 error: function (xhr) { // if error occured
-                    alert("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
-
+                    errorMsg("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
                 },
                 complete: function () {
                     $('#' + subject_group_target).removeClass('dropdownloading');
@@ -693,7 +692,7 @@ $(document).on('submit','form#evaluation_data',function(e){
                     $('#' + subject_target).append(div_data);
                 },
                 error: function (xhr) { // if error occured
-                   alert("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
+                    errorMsg("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
                 },
                 complete: function () {
                     $('#' + subject_target).removeClass('dropdownloading');
@@ -729,7 +728,7 @@ $(document).on('submit','form#evaluation_data',function(e){
                     $('#myModal').removeClass('modal_loading');
                 },
                 error: function (xhr) { // if error occured
-                    alert("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
+                    errorMsg("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
                     $('#myModal').removeClass('modal_loading');
                 },
                 complete: function () {
@@ -810,7 +809,7 @@ $(document).on('submit','.assign_teacher_form',function(e){
 
         if (checkCount == 0)
         {
-            alert("<?php echo $this->lang->line('atleast_one_homework_should_be_select'); ?>");
+            errorMsg("<?php echo $this->lang->line('atleast_one_homework_should_be_select'); ?>");
 
         } else {
             if (confirm("<?php echo $this->lang->line('are_you_sure_you_want_to_delete'); ?>")) {
@@ -844,7 +843,7 @@ $(document).on('submit','.assign_teacher_form',function(e){
                     },
                     error: function (xhr) { // if error occured
                         submit_button.button('reset');
-                        alert("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
+                        errorMsg("<?php echo $this->lang->line('error_occurred_please_try_again'); ?>");
 
                     },
                     complete: function () {

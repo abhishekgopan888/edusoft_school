@@ -133,10 +133,45 @@ class Routes extends Base
                         'required' => false,
                         'description' => 'Search student by name, admission number, or mobile',
                         'schema' => ['type' => 'string', 'example' => 'KAILAS']
+                    ],
+                    [
+                        'name' => 'date',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter student day-wise history by date (YYYY-MM-DD)',
+                        'schema' => ['type' => 'string', 'format' => 'date', 'example' => '2026-11-26']
+                    ],
+                    [
+                        'name' => 'date_from',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter history from start date (YYYY-MM-DD)',
+                        'schema' => ['type' => 'string', 'format' => 'date', 'example' => '2026-11-01']
+                    ],
+                    [
+                        'name' => 'date_to',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter history up to end date (YYYY-MM-DD)',
+                        'schema' => ['type' => 'string', 'format' => 'date', 'example' => '2026-11-30']
+                    ],
+                    [
+                        'name' => 'limit',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Number of history records to return (default 50, max 200)',
+                        'schema' => ['type' => 'integer', 'example' => 50]
+                    ],
+                    [
+                        'name' => 'offset',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Number of records to skip (default 0)',
+                        'schema' => ['type' => 'integer', 'example' => 0]
                     ]
                 ],
                 'responses' => [
-                    '200' => ['description' => 'Assigned route students retrieved successfully'],
+                    '200' => ['description' => 'Assigned route students and day-wise student history retrieved successfully'],
                     '401' => ['description' => 'Unauthorized']
                 ]
             ],
@@ -473,7 +508,7 @@ class Routes extends Base
 
     /**
      * GET /api/routes/students
-     * Query parameters: route_id, vehicle_id, bus_number, pickup_point_id, search
+     * Query parameters: route_id, vehicle_id, bus_number, pickup_point_id, search, date, date_from, date_to, limit, offset
      */
     public function students()
     {
@@ -484,6 +519,11 @@ class Routes extends Base
         $vehicle_id      = $this->input->get('vehicle_id') ?? $this->input->get('bus_id') ?? $this->input->get('busid');
         $bus_number      = $this->input->get('bus_number') ?? $this->input->get('bus_no') ?? $this->input->get('vehicle_no');
         $search          = $this->input->get('search') ?? $this->input->get('q');
+        $date            = $this->input->get('date');
+        $date_from       = $this->input->get('date_from');
+        $date_to         = $this->input->get('date_to');
+        $limit           = min(200, max(1, (int)($this->input->get('limit') ?: 50)));
+        $offset          = max(0, (int)($this->input->get('offset') ?: 0));
 
         if (!empty($vehicle_id) && !is_numeric($vehicle_id) && empty($bus_number)) {
             $bus_number = $vehicle_id;
@@ -491,6 +531,39 @@ class Routes extends Base
         }
 
         $students = $this->_get_route_students($route_id, $pickup_point_id, !empty($bus_number) ? $bus_number : $vehicle_id, $search);
+
+        // Fetch day-wise history for these students
+        $history_result = $this->_get_student_day_wise_history(
+            $students, 
+            $route_id, 
+            !empty($bus_number) ? $bus_number : $vehicle_id, 
+            $pickup_point_id, 
+            $date, 
+            $date_from, 
+            $date_to, 
+            $limit, 
+            $offset
+        );
+
+        $student_history  = $history_result['student_history'] ?? [];
+        $day_wise_history = $history_result['day_wise_history'] ?? [];
+
+        // Attach day-wise history to each individual student record
+        $history_by_student = [];
+        foreach ($student_history as $h_item) {
+            $sid = (int)$h_item['student_id'];
+            if (!isset($history_by_student[$sid])) {
+                $history_by_student[$sid] = [];
+            }
+            $history_by_student[$sid][] = $h_item;
+        }
+
+        foreach ($students as &$st) {
+            $sid = (int)$st['student_id'];
+            $st['day_wise_history'] = $history_by_student[$sid] ?? [];
+            $st['student_history']  = $history_by_student[$sid] ?? [];
+        }
+        unset($st);
 
         // Group students by stop for stops_summary
         $stops_grouped = [];
@@ -518,15 +591,18 @@ class Routes extends Base
         }
 
         $response_data = [
-            'route_id'        => !empty($route_id) ? (int)$route_id : null,
-            'route_title'     => $route_name,
-            'total_students'  => count($students),
-            'total_stops'     => count($stops_grouped),
-            'stops_summary'   => array_values($stops_grouped),
-            'students'        => $students
+            'route_id'               => !empty($route_id) ? (int)$route_id : null,
+            'route_title'            => $route_name,
+            'total_students'         => count($students),
+            'total_stops'            => count($stops_grouped),
+            'total_history_records'  => $history_result['total_records'] ?? count($student_history),
+            'stops_summary'          => array_values($stops_grouped),
+            'student_history'        => $student_history,
+            'day_wise_history'       => $day_wise_history,
+            'students'               => $students
         ];
 
-        $this->_success('Assigned route students retrieved successfully', $response_data);
+        $this->_success('Assigned route students and day-wise student history retrieved successfully', $response_data);
     }
 
     /**
@@ -537,16 +613,18 @@ class Routes extends Base
     {
         $this->_check_auth([], false);
 
-        $route_id   = $this->input->get('route_id') ?? $this->input->get('routeid') ?? $this->input->get('id');
-        $bus_id     = $this->input->get('bus_id') ?? $this->input->get('busid') ?? $this->input->get('vehicle_id');
-        $bus_number = $this->input->get('bus_number') ?? $this->input->get('bus_no') ?? $this->input->get('vehicle_no');
-        $trip_id    = $this->input->get('trip_id') ?? $this->input->get('tripid');
-        $date       = $this->input->get('date');
-        $date_from  = $this->input->get('date_from');
-        $date_to    = $this->input->get('date_to');
-        $status     = $this->input->get('status');
-        $limit      = min(200, max(1, (int)($this->input->get('limit') ?: 50)));
-        $offset     = max(0, (int)($this->input->get('offset') ?: 0));
+        $route_id        = $this->input->get('route_id') ?? $this->input->get('routeid') ?? $this->input->get('id');
+        $bus_id          = $this->input->get('bus_id') ?? $this->input->get('busid') ?? $this->input->get('vehicle_id');
+        $bus_number      = $this->input->get('bus_number') ?? $this->input->get('bus_no') ?? $this->input->get('vehicle_no');
+        $trip_id         = $this->input->get('trip_id') ?? $this->input->get('tripid');
+        $pickup_point_id = $this->input->get('pickup_point_id') ?? $this->input->get('pickuppointid');
+        $search          = $this->input->get('search') ?? $this->input->get('q');
+        $date            = $this->input->get('date');
+        $date_from       = $this->input->get('date_from');
+        $date_to         = $this->input->get('date_to');
+        $status          = $this->input->get('status');
+        $limit           = min(200, max(1, (int)($this->input->get('limit') ?: 50)));
+        $offset          = max(0, (int)($this->input->get('offset') ?: 0));
 
         if (!empty($bus_id) && !is_numeric($bus_id) && empty($bus_number)) {
             $bus_number = $bus_id;
@@ -556,7 +634,26 @@ class Routes extends Base
         $filters = compact('route_id', 'bus_id', 'bus_number', 'trip_id', 'date', 'date_from', 'date_to', 'status', 'limit', 'offset');
         $history_data = $this->_get_route_history($filters);
 
-        $this->_success('Route trip history retrieved successfully', $history_data);
+        // If search or route or bus is specified, also include day-wise student history
+        $students = $this->_get_route_students($route_id, $pickup_point_id, !empty($bus_number) ? $bus_number : $bus_id, $search);
+        if (!empty($students)) {
+            $st_history_result = $this->_get_student_day_wise_history(
+                $students, 
+                $route_id, 
+                !empty($bus_number) ? $bus_number : $bus_id, 
+                $pickup_point_id, 
+                $date, 
+                $date_from, 
+                $date_to, 
+                $limit, 
+                $offset
+            );
+            $history_data['total_student_history'] = $st_history_result['total_records'] ?? 0;
+            $history_data['student_history']       = $st_history_result['student_history'] ?? [];
+            $history_data['day_wise_history']      = $st_history_result['day_wise_history'] ?? [];
+        }
+
+        $this->_success('Route trip and student history retrieved successfully', $history_data);
     }
 
     /**
@@ -594,14 +691,14 @@ class Routes extends Base
         ->join('attenders', 'attenders.id = vehicle_routes.attender_id', 'left');
 
         if (!empty($vehicle_id) && is_numeric($vehicle_id)) {
-            $this->db->where('vehicle_routes.vehicle_id', (int)$vehicle_id);
+            $this->db->where('(vehicle_routes.vehicle_id = ' . (int)$vehicle_id . ' OR transport_route.id IN (SELECT route_id FROM trips WHERE bus_id = ' . $this->db->escape($vehicle_id) . '))', null, false);
         }
 
         if (!empty($bus_number)) {
             $clean_bus = preg_replace('/\s+/', '', $bus_number);
             $escaped_bus = $this->db->escape_str(trim($bus_number));
             $escaped_clean = $this->db->escape_str($clean_bus);
-            $this->db->where("(vehicles.vehicle_no = '{$escaped_bus}' OR REPLACE(vehicles.vehicle_no, ' ', '') = '{$escaped_clean}' OR vehicles.vehicle_no LIKE '%{$escaped_bus}%')", null, false);
+            $this->db->where("(vehicles.vehicle_no = '{$escaped_bus}' OR REPLACE(vehicles.vehicle_no, ' ', '') = '{$escaped_clean}' OR vehicles.vehicle_no LIKE '%{$escaped_bus}%' OR transport_route.id IN (SELECT route_id FROM trips WHERE bus_id = '{$escaped_bus}'))", null, false);
         }
 
         if (!empty($route_id)) {
@@ -649,7 +746,7 @@ class Routes extends Base
             $pickup_points = $this->db->get()->result_array();
 
             // Fetch assigned students for this route
-            $route_students = $this->_get_route_students($r_id);
+            $route_students = $this->_get_route_students($r_id, $pickup_point_id, !empty($bus_number) ? $bus_number : $vehicle_id);
             $route['total_students_count'] = count($route_students);
             $route['students']             = $route_students;
 
@@ -1329,12 +1426,12 @@ class Routes extends Base
 
         if (!empty($vehicle_id)) {
             if (is_numeric($vehicle_id)) {
-                $this->db->where('vr.vehicle_id', (int)$vehicle_id);
+                $this->db->where('(vr.vehicle_id = ' . (int)$vehicle_id . ' OR vr.route_id IN (SELECT route_id FROM trips WHERE bus_id = ' . $this->db->escape($vehicle_id) . '))', null, false);
             } else {
                 $clean_bus = preg_replace('/\s+/', '', $vehicle_id);
                 $escaped = $this->db->escape_str(trim($vehicle_id));
                 $escaped_clean = $this->db->escape_str($clean_bus);
-                $this->db->where("(v.vehicle_no = '{$escaped}' OR REPLACE(v.vehicle_no, ' ', '') = '{$escaped_clean}' OR v.vehicle_no LIKE '%{$escaped}%')", null, false);
+                $this->db->where("(v.vehicle_no = '{$escaped}' OR REPLACE(v.vehicle_no, ' ', '') = '{$escaped_clean}' OR v.vehicle_no LIKE '%{$escaped}%' OR vr.route_id IN (SELECT route_id FROM trips WHERE bus_id = '{$escaped}'))", null, false);
             }
         }
 
@@ -1389,6 +1486,296 @@ class Routes extends Base
         }
 
         return $students;
+    }
+
+    /**
+     * Fetch day-wise boarding / transit history for students
+     */
+    private function _get_student_day_wise_history($students = [], $route_id = null, $vehicle_id = null, $pickup_point_id = null, $date = null, $date_from = null, $date_to = null, $limit = 50, $offset = 0)
+    {
+        if (empty($students)) {
+            return [
+                'total_records'    => 0,
+                'student_history'  => [],
+                'day_wise_history' => []
+            ];
+        }
+
+        $student_ids = array_map(function ($s) {
+            return (int)$s['student_id'];
+        }, $students);
+        $student_ids = array_filter(array_unique($student_ids));
+        if (empty($student_ids)) {
+            return [
+                'total_records'    => 0,
+                'student_history'  => [],
+                'day_wise_history' => []
+            ];
+        }
+
+        $student_ids_str = implode(',', $student_ids);
+
+        // 1. Fetch boarding_point records
+        $bp_records = [];
+        if ($this->db->table_exists('boarding_point')) {
+            $this->db->select("
+                bp.id as boarding_id,
+                bp.studentid as student_id,
+                bp.busid,
+                bp.attenderid,
+                bp.status,
+                bp.timestamp,
+                DATE(bp.timestamp) as record_date,
+                TIME(bp.timestamp) as record_time,
+                v.vehicle_no as bus_number,
+                v.vehicle_model,
+                att.attender_name,
+                att.attender_phone
+            ")
+            ->from('boarding_point bp')
+            ->join('vehicles v', '(v.id = bp.busid OR v.vehicle_no = bp.busid)', 'left')
+            ->join('attenders att', 'att.id = bp.attenderid', 'left')
+            ->where("bp.studentid IN ($student_ids_str)", null, false);
+
+            if (!empty($date)) {
+                $this->db->where('DATE(bp.timestamp)', date('Y-m-d', strtotime($date)));
+            }
+            if (!empty($date_from)) {
+                $this->db->where('DATE(bp.timestamp) >=', date('Y-m-d', strtotime($date_from)));
+            }
+            if (!empty($date_to)) {
+                $this->db->where('DATE(bp.timestamp) <=', date('Y-m-d', strtotime($date_to)));
+            }
+
+            $this->db->order_by('bp.timestamp', 'DESC');
+            $bp_records = $this->db->get()->result_array();
+        }
+
+        // 2. Fetch trips for the relevant routes/buses
+        $trip_records = [];
+        if ($this->db->table_exists('trips')) {
+            $this->db->select("
+                t.id as trip_id,
+                t.bus_id,
+                t.driver_id,
+                t.route_id,
+                t.trip_type,
+                t.status as trip_status,
+                t.start_time,
+                t.end_time,
+                t.note as trip_note,
+                DATE(t.start_time) as trip_date,
+                tr.route_title,
+                v.vehicle_no as bus_number,
+                v.vehicle_model,
+                COALESCE(d.driver_name, vr_d.driver_name) as driver_name,
+                COALESCE(d.contact, vr_d.contact) as driver_contact,
+                att.attender_name,
+                att.attender_phone
+            ")
+            ->from('trips t')
+            ->join('transport_route tr', 'tr.id = t.route_id', 'left')
+            ->join('vehicles v', '(v.id = t.bus_id OR v.vehicle_no = t.bus_id)', 'left')
+            ->join('vehicle_routes vr', 'vr.route_id = t.route_id', 'left')
+            ->join('drivers d', 'd.id = t.driver_id', 'left')
+            ->join('drivers vr_d', 'vr_d.id = vr.driver_id', 'left')
+            ->join('attenders att', 'att.id = vr.attender_id', 'left');
+
+            $trip_conditions = [];
+            if (!empty($route_id)) {
+                $trip_conditions[] = 't.route_id = ' . (int)$route_id;
+            }
+            if (!empty($vehicle_id)) {
+                $escaped_v = $this->db->escape_str($vehicle_id);
+                $trip_conditions[] = "(t.bus_id = '{$escaped_v}' OR v.id = '{$escaped_v}')";
+            }
+            if (empty($trip_conditions)) {
+                $s_routes = array_unique(array_filter(array_column($students, 'route_id')));
+                if (!empty($s_routes)) {
+                    $trip_conditions[] = 't.route_id IN (' . implode(',', $s_routes) . ')';
+                }
+            }
+            if (!empty($trip_conditions)) {
+                $this->db->where('(' . implode(' OR ', $trip_conditions) . ')', null, false);
+            }
+
+            if (!empty($date)) {
+                $this->db->where('DATE(t.start_time)', date('Y-m-d', strtotime($date)));
+            }
+            if (!empty($date_from)) {
+                $this->db->where('DATE(t.start_time) >=', date('Y-m-d', strtotime($date_from)));
+            }
+            if (!empty($date_to)) {
+                $this->db->where('DATE(t.start_time) <=', date('Y-m-d', strtotime($date_to)));
+            }
+
+            $this->db->group_by('t.id');
+            $this->db->order_by('t.start_time', 'DESC');
+            $trip_records = $this->db->get()->result_array();
+        }
+
+        // Organize boarding records by [student_id][date]
+        $bp_by_student_date = [];
+        foreach ($bp_records as $bp) {
+            $sid = (int)$bp['student_id'];
+            $dt  = $bp['record_date'];
+            if (!isset($bp_by_student_date[$sid][$dt])) {
+                $bp_by_student_date[$sid][$dt] = [];
+            }
+            $bp_by_student_date[$sid][$dt][] = $bp;
+        }
+
+        // Organize trips by date
+        $trips_by_date = [];
+        foreach ($trip_records as $tr) {
+            $dt = $tr['trip_date'];
+            if (!isset($trips_by_date[$dt])) {
+                $trips_by_date[$dt] = [];
+            }
+            $trips_by_date[$dt][] = $tr;
+        }
+
+        // Gather all relevant dates
+        $all_bp_dates = [];
+        foreach ($bp_by_student_date as $s_dates) {
+            foreach (array_keys($s_dates) as $d_key) {
+                $all_bp_dates[] = $d_key;
+            }
+        }
+        $all_dates = array_unique(array_merge(array_keys($trips_by_date), $all_bp_dates));
+
+        // If no past dates recorded or date filter is today, include today
+        $today = date('Y-m-d');
+        if (empty($all_dates) || (empty($date_from) && empty($date_to) && empty($date) && !in_array($today, $all_dates))) {
+            $all_dates[] = $today;
+        }
+
+        rsort($all_dates);
+
+        $history_entries = [];
+
+        foreach ($all_dates as $cur_date) {
+            $matching_trips = $trips_by_date[$cur_date] ?? [];
+            $primary_trip   = !empty($matching_trips) ? $matching_trips[0] : null;
+
+            foreach ($students as $st) {
+                $sid = (int)$st['student_id'];
+                $student_bp = $bp_by_student_date[$sid][$cur_date] ?? [];
+
+                // Determine boarding/drop timestamps from boarding_point
+                $boarded_time = null;
+                $dropped_time = null;
+                $pending_time = null;
+                $bp_status    = null;
+                $bp_bus       = null;
+                $bp_attender  = null;
+
+                if (!empty($student_bp)) {
+                    foreach ($student_bp as $rec) {
+                        $st_lower = strtolower($rec['status']);
+                        if ($st_lower === 'boarded' && empty($boarded_time)) {
+                            $boarded_time = $rec['timestamp'];
+                        }
+                        if (in_array($st_lower, ['dropped', 'deboarded']) && empty($dropped_time)) {
+                            $dropped_time = $rec['timestamp'];
+                        }
+                        if ($st_lower === 'pending' && empty($pending_time)) {
+                            $pending_time = $rec['timestamp'];
+                        }
+                        if (empty($bp_bus) && !empty($rec['bus_number'])) {
+                            $bp_bus = $rec['bus_number'];
+                        }
+                        if (empty($bp_attender) && !empty($rec['attender_name'])) {
+                            $bp_attender = $rec['attender_name'];
+                        }
+                    }
+                    $bp_status = ucfirst($student_bp[0]['status']);
+                }
+
+                if (empty($bp_status)) {
+                    if (!empty($primary_trip)) {
+                        $bp_status = (strtolower($primary_trip['trip_status']) === 'completed') ? 'Dropped' : 'Boarded';
+                        $boarded_time = $primary_trip['start_time'];
+                        $dropped_time = $primary_trip['end_time'];
+                    } else {
+                        $bp_status = !empty($st['boarding_status']) ? ucfirst($st['boarding_status']) : 'Pending';
+                    }
+                }
+
+                $resolved_bus_id = !empty($primary_trip['bus_id']) ? $primary_trip['bus_id'] : ($st['vehicle_id'] ?? $vehicle_id);
+                $resolved_bus_no = !empty($primary_trip['bus_number']) ? $primary_trip['bus_number'] : ($bp_bus ?? ($st['bus_number'] ?? ''));
+
+                $history_entries[] = [
+                    'date'                => $cur_date,
+                    'day'                 => date('l', strtotime($cur_date)),
+                    'student_id'          => $sid,
+                    'student_name'        => $st['student_name'],
+                    'admission_no'        => (string)$st['admission_no'],
+                    'roll_no'             => (string)$st['roll_no'],
+                    'class'               => (string)$st['class'],
+                    'section'             => (string)$st['section'],
+                    'student_phone'       => (string)$st['student_phone'],
+                    'guardian_name'       => (string)$st['guardian_name'],
+                    'guardian_phone'      => (string)$st['guardian_phone'],
+                    'route_id'            => !empty($st['route_id']) ? (int)$st['route_id'] : (!empty($route_id) ? (int)$route_id : null),
+                    'route_title'         => !empty($st['route_title']) ? $st['route_title'] : (!empty($primary_trip['route_title']) ? $primary_trip['route_title'] : ''),
+                    'pickup_point_id'     => !empty($st['pickup_point_id']) ? (int)$st['pickup_point_id'] : null,
+                    'pickup_point_name'   => !empty($st['pickup_point_name']) ? $st['pickup_point_name'] : '',
+                    'pickup_time'         => (string)$st['pickup_time'],
+                    'vehicle_id'          => $resolved_bus_id,
+                    'bus_number'          => $resolved_bus_no,
+                    'vehicle_model'       => !empty($primary_trip['vehicle_model']) ? $primary_trip['vehicle_model'] : ($st['vehicle_model'] ?? ''),
+                    'status'              => $bp_status,
+                    'boarded_time'        => $boarded_time,
+                    'dropped_time'        => $dropped_time,
+                    'pending_time'        => $pending_time,
+                    'driver_name'         => !empty($primary_trip['driver_name']) ? $primary_trip['driver_name'] : '',
+                    'driver_contact'      => !empty($primary_trip['driver_contact']) ? $primary_trip['driver_contact'] : '',
+                    'attender_name'       => !empty($primary_trip['attender_name']) ? $primary_trip['attender_name'] : ($bp_attender ?? ''),
+                    'attender_phone'      => !empty($primary_trip['attender_phone']) ? $primary_trip['attender_phone'] : '',
+                    'trip_id'             => !empty($primary_trip['trip_id']) ? (int)$primary_trip['trip_id'] : null,
+                    'trip_type'           => !empty($primary_trip['trip_type']) ? $primary_trip['trip_type'] : 'pickup',
+                    'trip_status'         => !empty($primary_trip['trip_status']) ? $primary_trip['trip_status'] : null,
+                    'trip_start_time'     => !empty($primary_trip['start_time']) ? $primary_trip['start_time'] : null,
+                    'trip_end_time'       => !empty($primary_trip['end_time']) ? $primary_trip['end_time'] : null,
+                    'note'                => !empty($primary_trip['trip_note']) ? $primary_trip['trip_note'] : ''
+                ];
+            }
+        }
+
+        // Group day-wise
+        $day_wise_grouped = [];
+        foreach ($history_entries as $entry) {
+            $d = $entry['date'];
+            if (!isset($day_wise_grouped[$d])) {
+                $day_wise_grouped[$d] = [
+                    'date'            => $d,
+                    'day'             => $entry['day'],
+                    'total_students'  => 0,
+                    'boarded_count'   => 0,
+                    'dropped_count'   => 0,
+                    'pending_count'   => 0,
+                    'trips_count'     => isset($trips_by_date[$d]) ? count($trips_by_date[$d]) : 0,
+                    'records'         => []
+                ];
+            }
+            $day_wise_grouped[$d]['total_students']++;
+            $st_low = strtolower($entry['status']);
+            if ($st_low === 'boarded') {
+                $day_wise_grouped[$d]['boarded_count']++;
+            } elseif ($st_low === 'dropped') {
+                $day_wise_grouped[$d]['dropped_count']++;
+            } else {
+                $day_wise_grouped[$d]['pending_count']++;
+            }
+            $day_wise_grouped[$d]['records'][] = $entry;
+        }
+
+        return [
+            'total_records'    => count($history_entries),
+            'student_history'  => array_slice($history_entries, $offset, $limit),
+            'day_wise_history' => array_values($day_wise_grouped)
+        ];
     }
 
     /**
