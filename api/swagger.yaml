@@ -540,13 +540,13 @@ paths:
         - {}
   /dashboard:
     get:
-      summary: "Get Dashboard summary (Bus details, Route-based details, Student boarding stats)"
-      description: "Retrieves complete dashboard overview including bus details, corresponding route-based dashboard details (route stops, vehicles, assigned students count, student boarding status, and progress percentages), and overall student boarding statistics in a single response."
+      summary: "Get Route-based Dashboard details (Route, Vehicles, Stops, Students, Boarding stats)"
+      description: "Retrieves corresponding route-against dashboard overview. For each route (or filtered route), lists its assigned vehicles with drivers/attenders, pickup stops with students count, assigned students with contact & transport info, and student boarding progress."
       tags:
         - Dashboard
       responses:
         200:
-          description: Dashboard data retrieved successfully
+          description: Route dashboard data retrieved successfully
         401:
           description: "Unauthorized - Invalid or missing API key"
       parameters:
@@ -567,7 +567,7 @@ paths:
         - name: route_id
           in: query
           required: false
-          description: "Filter dashboard data by specific Route ID to get corresponding route-based dashboard details"
+          description: "Filter dashboard data by specific Route ID to list only that corresponding route's details"
           schema:
             type: integer
             example: 1
