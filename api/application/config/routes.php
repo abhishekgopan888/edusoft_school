@@ -209,6 +209,12 @@ $route['api/daily_assignment/list'] = 'dailyassignment/index';
 $route['api/daily_assignment/details'] = 'dailyassignment/details';
 $route['api/daily_assignment/details/(:num)'] = 'dailyassignment/details/$1';
 
+// Bavo Parent Tracking routes
+$route['bavo'] = 'bavo/index';
+$route['bavo/tracking'] = 'bavo/index';
+$route['api/bavo'] = 'bavo/index';
+$route['api/bavo/tracking'] = 'bavo/index';
+
 
 
 

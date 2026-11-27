@@ -2879,6 +2879,78 @@
                     }
                 }
             }
+        },
+        "/bavo": {
+            "get": {
+                "summary": "Get Bavo parent live student tracking, timeline, history, drop location, and notifications",
+                "description": "Returns complete parent view for Bavo app: where the student is right now, arrival timeline across route stops, boarded/dropped status, drop near location details, student route history, and notifications.",
+                "tags": [
+                    "Bavo Parent Tracking"
+                ],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {}
+                ],
+                "parameters": [
+                    {
+                        "name": "student_id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Student ID (e.g. 825)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 825
+                        }
+                    },
+                    {
+                        "name": "route_id",
+                        "in": "query",
+                        "required": false,
+                        "description": "Optional Route ID (auto-resolved from student transport assignment if omitted)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "description": "Tracking date (YYYY-MM-DD). Defaults to today.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-11-27"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "description": "Max records for route history and notifications (default 30, max 100)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 30
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bavo parent tracking details retrieved successfully"
+                    },
+                    "400": {
+                        "description": "student_id is required"
+                    },
+                    "404": {
+                        "description": "Student not found"
+                    }
+                }
+            }
         }
     },
     "security": [
