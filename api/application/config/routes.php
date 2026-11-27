@@ -215,6 +215,26 @@ $route['bavo/tracking'] = 'bavo/index';
 $route['api/bavo'] = 'bavo/index';
 $route['api/bavo/tracking'] = 'bavo/index';
 
+// Student Attendance routes
+$route['attendance'] = 'attendance/index';
+$route['attendance/details'] = 'attendance/details';
+$route['api/attendance'] = 'attendance/index';
+$route['api/attendance/details'] = 'attendance/details';
+
+// Download Center routes
+$route['download_center'] = 'downloadcenter/index';
+$route['download_center/details'] = 'downloadcenter/details';
+$route['download_center/details/(:num)'] = 'downloadcenter/details/$1';
+$route['api/download_center'] = 'downloadcenter/index';
+$route['api/download_center/details'] = 'downloadcenter/details';
+$route['api/download_center/details/(:num)'] = 'downloadcenter/details/$1';
+
+// Live Class routes
+$route['live_class'] = 'liveclass/index';
+$route['live_class/details'] = 'liveclass/details';
+$route['api/live_class'] = 'liveclass/index';
+$route['api/live_class/details'] = 'liveclass/details';
+
 
 
 
