@@ -436,7 +436,7 @@ class Homework extends Base
 
         $this->db->select('daily_assignment.*, subjects.name as subject_name, subjects.code as subject_code')
             ->from('daily_assignment')
-            ->join('student_session', 'student_session.session_id = daily_assignment.student_session_id', 'left')
+            ->join('student_session', 'student_session.id = daily_assignment.student_session_id', 'left')
             ->join('subject_group_subjects', 'subject_group_subjects.id = daily_assignment.subject_group_subject_id', 'left')
             ->join('subjects', 'subjects.id = subject_group_subjects.subject_id', 'left')
             ->group_start()

@@ -191,6 +191,24 @@ $route['api/homework/details'] = 'homework/details';
 $route['api/homework/details/(:num)'] = 'homework/details/$1';
 $route['api/homework/daily'] = 'homework/daily';
 
+// Fees routes
+$route['fees'] = 'fees/index';
+$route['fees/list'] = 'fees/index';
+$route['fees/details'] = 'fees/details';
+$route['api/fees'] = 'fees/index';
+$route['api/fees/list'] = 'fees/index';
+$route['api/fees/details'] = 'fees/details';
+
+// Daily Assignment routes
+$route['daily_assignment'] = 'dailyassignment/index';
+$route['daily_assignment/list'] = 'dailyassignment/index';
+$route['daily_assignment/details'] = 'dailyassignment/details';
+$route['daily_assignment/details/(:num)'] = 'dailyassignment/details/$1';
+$route['api/daily_assignment'] = 'dailyassignment/index';
+$route['api/daily_assignment/list'] = 'dailyassignment/index';
+$route['api/daily_assignment/details'] = 'dailyassignment/details';
+$route['api/daily_assignment/details/(:num)'] = 'dailyassignment/details/$1';
+
 
 
 

@@ -1681,6 +1681,183 @@ paths:
           description: "Student ID is required."
         401:
           description: "Unauthorized."
+  /fees:
+    get:
+      summary: Get student fees list
+      description: "Retrieves assigned fee records with student, class, fee group, fee type, amount, paid, discount, fine, balance, and status details. Supports filtering by student_id, class_id, section_id, and status."
+      tags:
+        - Fees Management
+      security:
+        - BearerAuth: {}
+        - ApiKeyAuth: {}
+        - {}
+      parameters:
+        - name: student_id
+          in: query
+          required: false
+          description: Filter by Student ID
+          schema:
+            type: integer
+            example: 825
+        - name: class_id
+          in: query
+          required: false
+          description: Filter by Class ID
+          schema:
+            type: integer
+            example: 1
+        - name: section_id
+          in: query
+          required: false
+          description: Filter by Section ID
+          schema:
+            type: integer
+            example: 1
+        - name: status
+          in: query
+          required: false
+          description: "Filter by fee payment status (paid, partial, unpaid)"
+          schema:
+            type: string
+            enum:
+              - paid
+              - partial
+              - unpaid
+        - name: limit
+          in: query
+          required: false
+          description: "Maximum number of records to return (default 50, max 200)"
+          schema:
+            type: integer
+            example: 50
+        - name: offset
+          in: query
+          required: false
+          description: "Number of records to skip (default 0)"
+          schema:
+            type: integer
+            example: 0
+      responses:
+        200:
+          description: Student fees retrieved successfully
+        401:
+          description: Unauthorized
+  /fees/details:
+    get:
+      summary: Get student fee details by student_id
+      description: "Retrieves complete fee breakdown for a specific student including regular fee groups, payment history, transport fees, and overall balance summary."
+      tags:
+        - Fees Management
+      security:
+        - BearerAuth: {}
+        - ApiKeyAuth: {}
+        - {}
+      parameters:
+        - name: student_id
+          in: query
+          required: true
+          description: Student ID
+          schema:
+            type: integer
+            example: 825
+      responses:
+        200:
+          description: Student fee details retrieved successfully
+        400:
+          description: student_id is required
+        404:
+          description: Student not found
+  /daily_assignment:
+    get:
+      summary: Get daily assignments list
+      description: "Retrieves daily assignments with student, class, section, subject, attachment URL, and evaluation details. Supports filtering by student_id, class_id, section_id, subject_id, and date."
+      tags:
+        - Daily Assignment
+      security:
+        - BearerAuth: {}
+        - ApiKeyAuth: {}
+        - {}
+      parameters:
+        - name: student_id
+          in: query
+          required: false
+          description: Filter by Student ID
+          schema:
+            type: integer
+            example: 825
+        - name: class_id
+          in: query
+          required: false
+          description: Filter by Class ID
+          schema:
+            type: integer
+            example: 1
+        - name: section_id
+          in: query
+          required: false
+          description: Filter by Section ID
+          schema:
+            type: integer
+            example: 1
+        - name: subject_id
+          in: query
+          required: false
+          description: Filter by Subject ID or Subject Group Subject ID
+          schema:
+            type: integer
+            example: 3
+        - name: date
+          in: query
+          required: false
+          description: "Filter by assignment date (YYYY-MM-DD)"
+          schema:
+            type: string
+            format: date
+            example: "2026-11-27"
+        - name: limit
+          in: query
+          required: false
+          description: "Maximum number of records to return (default 50, max 200)"
+          schema:
+            type: integer
+            example: 50
+        - name: offset
+          in: query
+          required: false
+          description: "Number of records to skip (default 0)"
+          schema:
+            type: integer
+            example: 0
+      responses:
+        200:
+          description: Daily assignments retrieved successfully
+        401:
+          description: Unauthorized
+  /daily_assignment/details:
+    get:
+      summary: Get daily assignment details by ID
+      description: "Retrieves full details for a single daily assignment record including student, subject, attachment URL, and evaluation remark."
+      tags:
+        - Daily Assignment
+      security:
+        - BearerAuth: {}
+        - ApiKeyAuth: {}
+        - {}
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Daily Assignment ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        200:
+          description: Daily assignment details retrieved successfully
+        400:
+          description: id is required
+        404:
+          description: Daily assignment not found
 security:
   - BearerAuth: {}
   - ApiKeyAuth: {}
